@@ -32,3 +32,5 @@ class Organization(Base):
     integrations = relationship("OrganizationIntegration", back_populates="organization", cascade="all, delete-orphan")
     sent_emails = relationship("SentEmail", back_populates="organization", cascade="all, delete-orphan")
     settings = relationship("OrganizationSetting", back_populates="organization", uselist=False, cascade="all, delete-orphan")
+    announcements = relationship("Announcement", back_populates="organization", cascade="all, delete-orphan")
+    meeting_summaries = relationship("MeetingSummary", back_populates="organization", cascade="all, delete-orphan")

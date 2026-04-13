@@ -1,117 +1,157 @@
 import { useEffect, useState } from "react";
-import { Chip, CircularProgress, Grid, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
-import { adminApi, organizationsApi } from "../api/endpoints";
+import { Alert, Button, Chip, CircularProgress, Grid, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import { adminApi } from "../api/endpoints";
 import GlassPanel from "../components/GlassPanel";
 import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
 import { useRealtime } from "../store/RealtimeContext";
 
 function GlobalControlCenterPage() {
+  const navigate = useNavigate();
   const { versions, connectionState } = useRealtime();
-  const [summary, setSummary] = useState(null);
-  const [comparison, setComparison] = useState([]);
-  const [organizations, setOrganizations] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const response = await adminApi.commandCenter().catch(() => adminApi.controlCenter());
+      setData(response.data);
+      setError("");
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "Unable to load command center");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    Promise.all([adminApi.globalSummary(), adminApi.organizationComparison(), organizationsApi.list(), adminApi.users({ organization_id: "" }).catch(() => ({ data: [] }))]).then(
-      ([summaryResponse, comparisonResponse, organizationsResponse, usersResponse]) => {
-        setSummary(summaryResponse.data);
-        setComparison(comparisonResponse.data);
-        setOrganizations(organizationsResponse.data);
-        setUsers(usersResponse.data);
-      }
-    );
-  }, [versions.activity, versions.organizations, versions.users]);
-
-  if (!summary) {
-    return <CircularProgress />;
-  }
+    load();
+  }, [versions.activity, versions.notifications, versions.organizations, versions.users, versions.analytics]);
 
   return (
     <>
       <PageHeader
         eyebrow="Super Admin"
-        title="Global control center"
-        description="A cross-organization operating view for tenant health, workforce scale, overdue pressure, and portfolio-level execution signals."
-        actions={[<Chip key="live" label={`Realtime ${connectionState}`} color={connectionState === "connected" ? "success" : "default"} />]}
+        title="Command center"
+        description="Executive platform oversight for organization health, overdue pressure, approvals, alerts, automation posture, and system-wide activity."
+        actions={[
+          <Chip key="live" label={`Realtime ${connectionState}`} color={connectionState === "connected" ? "success" : "default"} />,
+          <Button key="refresh" variant="outlined" onClick={load}>Refresh</Button>,
+        ]}
       />
-      <Grid container spacing={2.5}>
-        <Grid item xs={12} md={6} xl={3}><MetricCard label="Organizations" value={organizations.length} helper="Active companies on the platform" accent="rgba(155,124,255,0.28)" /></Grid>
-        <Grid item xs={12} md={6} xl={3}><MetricCard label="Users" value={summary.total_users} helper="People managed across all orgs" accent="rgba(61,200,255,0.24)" /></Grid>
-        <Grid item xs={12} md={6} xl={3}><MetricCard label="Tasks" value={summary.total_tasks} helper="Cross-org workload in the system" accent="rgba(255,107,122,0.22)" /></Grid>
-        <Grid item xs={12} md={6} xl={3}><MetricCard label="Unread alerts" value={summary.unread_notifications} helper="Global signal volume" accent="rgba(57,217,138,0.18)" /></Grid>
-        <Grid item xs={12} lg={8}>
-          <GlassPanel title="Organization comparison" subtitle="Performance and workload across companies">
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Organization</TableCell>
-                  <TableCell>Slug</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Industry</TableCell>
-                  <TableCell>Users</TableCell>
-                  <TableCell>Teams</TableCell>
-                  <TableCell>Tasks</TableCell>
-                  <TableCell>Overdue</TableCell>
-                  <TableCell>Knowledge</TableCell>
-                  <TableCell>Notifications</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {comparison.map((organization) => (
-                  <TableRow key={organization.id}>
-                    <TableCell>{organization.name}</TableCell>
-                    <TableCell>{organization.slug}</TableCell>
-                    <TableCell>{organization.status}</TableCell>
-                    <TableCell>{organization.industry}</TableCell>
-                    <TableCell>{organization.users}</TableCell>
-                    <TableCell>{organization.teams}</TableCell>
-                    <TableCell>{organization.tasks}</TableCell>
-                    <TableCell>{organization.overdue_tasks}</TableCell>
-                    <TableCell>{organization.knowledge_items}</TableCell>
-                    <TableCell>{organization.notifications}</TableCell>
+      {loading ? <Stack alignItems="center" sx={{ py: 10 }}><CircularProgress /></Stack> : null}
+      {error ? <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert> : null}
+      {data ? (
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6} xl={3}><MetricCard label="Organizations" value={data.overview.total_organizations} helper="Companies on the platform" accent="rgba(155,124,255,0.28)" /></Grid>
+          <Grid item xs={12} md={6} xl={3}><MetricCard label="Users" value={data.overview.total_users} helper="People across all orgs" accent="rgba(61,200,255,0.22)" /></Grid>
+          <Grid item xs={12} md={6} xl={3}><MetricCard label="Admins" value={data.overview.total_admins} helper="Admin operators and owners" accent="rgba(245,165,36,0.22)" /></Grid>
+          <Grid item xs={12} md={6} xl={3}><MetricCard label="Active tasks" value={data.overview.total_active_tasks} helper="Open work across the platform" accent="rgba(255,107,122,0.20)" /></Grid>
+          <Grid item xs={12} lg={8}>
+            <GlassPanel title="Organization comparison" subtitle="Top-line health, overdue pressure, and workload across companies">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Organization</TableCell>
+                    <TableCell>Industry</TableCell>
+                    <TableCell>Users</TableCell>
+                    <TableCell>Tasks</TableCell>
+                    <TableCell>Overdue</TableCell>
+                    <TableCell>Automations</TableCell>
+                    <TableCell>Latest activity</TableCell>
                   </TableRow>
+                </TableHead>
+                <TableBody>
+                  {data.organization_comparison.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.name}</TableCell>
+                      <TableCell>{item.industry}</TableCell>
+                      <TableCell>{item.users}</TableCell>
+                      <TableCell>{item.tasks}</TableCell>
+                      <TableCell>{item.overdue_tasks}</TableCell>
+                      <TableCell>{item.automations}</TableCell>
+                      <TableCell>{item.latest_activity}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </GlassPanel>
+          </Grid>
+          <Grid item xs={12} lg={4}>
+            <GlassPanel title="Quick actions" subtitle="Jump to the highest-leverage admin surfaces">
+              <Stack spacing={1.2}>
+                {[
+                  { label: "Create organization", path: "/organizations" },
+                  { label: "Manage organizations", path: "/organizations" },
+                  { label: "Review approvals", path: "/approvals" },
+                  { label: "Open users directory", path: "/employees" },
+                  { label: "Open reports", path: "/reports" },
+                ].map((item) => (
+                  <Button key={item.label} variant="outlined" fullWidth onClick={() => navigate(item.path)}>{item.label}</Button>
                 ))}
-              </TableBody>
-            </Table>
-          </GlassPanel>
-        </Grid>
-        <Grid item xs={12} lg={4}>
-          <GlassPanel title="Cross-org attention lane" subtitle="The highest-pressure items right now">
-            <Stack spacing={1.5}>
-              {summary.focus_items.map((item) => (
-                <Stack key={item.title} sx={{ p: 1.5, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
-                  <Typography variant="subtitle2">{item.title}</Typography>
-                  <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>{item.subtitle}</Typography>
-                </Stack>
-              ))}
-            </Stack>
-          </GlassPanel>
-        </Grid>
-        <Grid item xs={12}>
-          <GlassPanel title="Organization summaries" subtitle="Latest activity and quick operational shape">
-            <Grid container spacing={2}>
-              {organizations.map((entry) => (
-                <Grid item xs={12} md={6} xl={4} key={entry.organization.id}>
-                  <Stack sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }} spacing={1}>
-                    <Stack direction="row" justifyContent="space-between" spacing={1}>
-                      <Typography variant="subtitle1">{entry.organization.name}</Typography>
-                      <Chip size="small" label={entry.organization.is_active ? "Active" : "Inactive"} color={entry.organization.is_active ? "success" : "default"} />
-                    </Stack>
-                    <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>{entry.latest_activity}</Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                      <Chip size="small" label={`${entry.user_count} users`} />
-                      <Chip size="small" label={`${entry.team_count} teams`} />
-                      <Chip size="small" label={`${entry.task_count} tasks`} />
-                    </Stack>
+              </Stack>
+            </GlassPanel>
+          </Grid>
+          <Grid item xs={12} lg={4}>
+            <GlassPanel title="At-risk organizations" subtitle="Highest overdue pressure and operational drift">
+              <Stack spacing={1.2}>
+                {data.at_risk_organizations.map((item) => (
+                  <Stack key={item.id} sx={{ p: 1.6, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+                    <Typography variant="subtitle2">{item.name}</Typography>
+                    <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.66)" }}>{item.overdue_tasks} overdue tasks - {item.tasks} total tasks</Typography>
                   </Stack>
-                </Grid>
-              ))}
-            </Grid>
-          </GlassPanel>
+                ))}
+              </Stack>
+            </GlassPanel>
+          </Grid>
+          <Grid item xs={12} lg={4}>
+            <GlassPanel title="Critical alerts" subtitle="Recent high-severity signals">
+              <Stack spacing={1.2}>
+                {data.critical_notifications.length ? data.critical_notifications.map((item) => (
+                  <Stack key={item.id} sx={{ p: 1.6, borderRadius: 3.5, bgcolor: "rgba(255,107,122,0.08)" }}>
+                    <Typography variant="subtitle2">{item.title}</Typography>
+                    <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.66)" }}>{item.message}</Typography>
+                  </Stack>
+                )) : <Typography variant="body2">No critical alerts right now.</Typography>}
+              </Stack>
+            </GlassPanel>
+          </Grid>
+          <Grid item xs={12} lg={4}>
+            <GlassPanel title="Important announcements" subtitle="Pinned and recent platform-wide notices">
+              <Stack spacing={1.2}>
+                {data.important_announcements.length ? data.important_announcements.map((item) => (
+                  <Stack key={item.id} sx={{ p: 1.6, borderRadius: 3.5, bgcolor: item.is_pinned ? "rgba(116,184,255,0.08)" : "rgba(255,255,255,0.03)" }}>
+                    <Typography variant="subtitle2">{item.title}</Typography>
+                    <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.66)" }}>{item.severity}</Typography>
+                  </Stack>
+                )) : <Typography variant="body2">No recent announcements.</Typography>}
+              </Stack>
+            </GlassPanel>
+          </Grid>
+          <Grid item xs={12} lg={6}>
+            <GlassPanel title="Automation health" subtitle="Enabled rules and recent automation runs">
+              <Stack spacing={1.2}>
+                <Chip label={`${data.automation_health.enabled_rules} enabled rules`} color="secondary" />
+                {data.automation_health.recent_runs.map((item) => (
+                  <Typography key={item.id} variant="body2">{item.name} - {item.last_triggered_at ? new Date(item.last_triggered_at).toLocaleString() : "Not triggered yet"}</Typography>
+                ))}
+              </Stack>
+            </GlassPanel>
+          </Grid>
+          <Grid item xs={12} lg={6}>
+            <GlassPanel title="Audit activity" subtitle="Recent system-level changes and operator actions">
+              <Stack spacing={1.2}>
+                {data.audit_activity.map((item) => (
+                  <Typography key={item.id} variant="body2">{item.action} - {item.details}</Typography>
+                ))}
+              </Stack>
+            </GlassPanel>
+          </Grid>
         </Grid>
-      </Grid>
+      ) : null}
     </>
   );
 }

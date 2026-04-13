@@ -81,17 +81,31 @@ class RecurringTaskRead(BaseModel):
 
 class TaskApprovalCreate(BaseModel):
     task_id: int
+    reason: str | None = None
 
 
 class TaskApprovalAction(BaseModel):
     status: str
 
 
+class ApprovalTaskLight(BaseModel):
+    id: int
+    title: str
+    organization_id: int
+    status: str
+    priority: str
+
+    class Config:
+        from_attributes = True
+
+
 class TaskApprovalRead(BaseModel):
     id: int
     task_id: int
+    reason: str | None = None
     status: str
     created_at: datetime
+    task: Optional[ApprovalTaskLight] = None
     requester: Optional[UserRead] = None
     approver: Optional[UserRead] = None
 

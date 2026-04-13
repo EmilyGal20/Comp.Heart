@@ -20,6 +20,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import { organizationsApi, usersApi } from "../api/endpoints";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
@@ -37,6 +38,7 @@ const initialForm = {
 };
 
 function EmployeesPage() {
+  const navigate = useNavigate();
   const { user, activeOrganizationId } = useAuth();
   const { versions } = useRealtime();
   const [users, setUsers] = useState([]);
@@ -198,6 +200,7 @@ function EmployeesPage() {
                         <TableCell><Chip size="small" label={entry.is_active ? "Active" : "Inactive"} color={entry.is_active ? "success" : "default"} /></TableCell>
                         <TableCell>{entry.organization?.name}</TableCell>
                         <TableCell align="right">
+                          <Button size="small" onClick={(event) => { event.stopPropagation(); navigate(`/people/${entry.id}`); }}>Profile</Button>
                           {canManage ? <Button size="small" onClick={(event) => { event.stopPropagation(); openEdit(entry); }}>Edit</Button> : null}
                           {canManage ? <Button size="small" color={entry.is_active ? "warning" : "success"} onClick={(event) => { event.stopPropagation(); toggleStatus(entry); }}>{entry.is_active ? "Deactivate" : "Activate"}</Button> : null}
                         </TableCell>

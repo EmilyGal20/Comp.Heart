@@ -41,6 +41,14 @@ def initialize_database():
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
         if "tags" not in task_columns or "related_knowledge_ids" not in task_columns or "parent_task_id" not in task_columns or "sprint_id" not in task_columns or "backlog_order" not in task_columns or "external_refs" not in task_columns:
             needs_reset = True
+    if "automation_rules" in existing_tables:
+        automation_columns = {column["name"] for column in inspector.get_columns("automation_rules")}
+        if "scope_json" not in automation_columns or "last_triggered_at" not in automation_columns:
+            needs_reset = True
+    if "task_approvals" in existing_tables:
+        approval_columns = {column["name"] for column in inspector.get_columns("task_approvals")}
+        if "reason" not in approval_columns:
+            needs_reset = True
     required_tables = {
         "task_activities",
         "task_attachments",
@@ -58,6 +66,13 @@ def initialize_database():
         "sent_emails",
         "user_workspace_settings",
         "organization_settings",
+        "knowledge_versions",
+        "announcements",
+        "announcement_reads",
+        "meeting_summaries",
+        "self_notes",
+        "onboarding_steps",
+        "user_onboarding_progress",
     }
     if any(table not in existing_tables for table in required_tables):
         needs_reset = True

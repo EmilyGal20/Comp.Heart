@@ -12,6 +12,7 @@ from app.db.session import SessionLocal, initialize_database
 from app.models.user import User
 from app.routers import admin, ai, auth, automation, dashboard, knowledge, notifications, organizations, tasks, users, work_management
 from app.routers import analytics, chat, integrations, settings as settings_router
+from app.routers import announcements, approvals, contacts, meetings, onboarding, search, self_notes
 from app.seed.data import seed_database
 from app.services.automation_service import run_sla_scan
 from app.services.work_management_service import run_recurring_generation
@@ -118,6 +119,7 @@ app.include_router(users.router, prefix=settings.api_prefix)
 app.include_router(knowledge.router, prefix=settings.api_prefix)
 app.include_router(tasks.router, prefix=settings.api_prefix)
 app.include_router(automation.router, prefix=settings.api_prefix)
+app.include_router(approvals.router, prefix=settings.api_prefix)
 app.include_router(notifications.router, prefix=settings.api_prefix)
 app.include_router(ai.router, prefix=settings.api_prefix)
 app.include_router(dashboard.router, prefix=settings.api_prefix)
@@ -126,3 +128,9 @@ app.include_router(chat.router, prefix=settings.api_prefix)
 app.include_router(integrations.router, prefix=settings.api_prefix)
 app.include_router(analytics.router, prefix=settings.api_prefix)
 app.include_router(settings_router.router, prefix=settings.api_prefix)
+app.include_router(announcements.router, prefix=settings.api_prefix)
+app.include_router(meetings.router, prefix=settings.api_prefix)
+app.include_router(self_notes.router, prefix=settings.api_prefix)
+app.include_router(contacts.router, prefix=settings.api_prefix)
+app.include_router(onboarding.router, prefix=settings.api_prefix)
+app.include_router(search.router, prefix=settings.api_prefix)

@@ -70,6 +70,22 @@ class UserDashboard(BaseModel):
     profile: UserRead
     summary: dict
     my_tasks: list[dict]
+    watched_tasks: list[dict] = []
+    mentions: list[dict] = []
     recent_notifications: list[dict]
     recommended_knowledge: list[dict]
     recent_activity: list[dict]
+
+
+class UserProfileResponse(BaseModel):
+    user: UserRead
+    profile_completion_percent: int
+    activity_summary: dict
+    assigned_tasks: list[dict]
+    watched_tasks: list[dict]
+    recent_notifications: list[dict]
+    approvals: list[dict]
+    recent_activity: list[dict]
+    recent_comments: list[dict]
+    recent_meetings: list[dict]
+    links: list[dict]

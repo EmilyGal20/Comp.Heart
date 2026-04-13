@@ -8,9 +8,10 @@ from app.models.knowledge import KnowledgeItem
 from app.models.notification import Notification
 from app.models.task import Task, TaskActivity, TaskWatcher
 from app.models.user import Team, User
-from app.schemas.user import UserCreate, UserDashboard, UserRead, UserStatusUpdate, UserUpdate
+from app.schemas.user import UserCreate, UserDashboard, UserProfileResponse, UserRead, UserStatusUpdate, UserUpdate
 from app.services.audit_service import log_audit_event
 from app.services.integration_service import selectable_recipients
+from app.services.profile_service import get_user_profile_payload
 from app.utils.dependencies import get_current_user, require_min_role, require_same_org_or_super
 
 
@@ -225,6 +226,19 @@ def my_dashboard(db: Session = Depends(get_db), current_user: User = Depends(get
 @router.get("/selectable-recipients", response_model=list[UserRead])
 def get_selectable_recipients(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return selectable_recipients(db, current_user=current_user)
+
+
+@router.get("/me/profile", response_model=UserProfileResponse)
+def get_my_profile(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return get_user_profile_payload(db, target_user=current_user)
+
+
+@router.get("/{user_id}/profile", response_model=UserProfileResponse)
+def get_user_profile(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    target_user = _get_user_or_404(db, user_id)
+    if current_user.role != "SUPER_ADMIN" and target_user.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Cross-organization access denied")
+    return get_user_profile_payload(db, target_user=target_user)
 
 
 @router.get("/{user_id}", response_model=UserRead)

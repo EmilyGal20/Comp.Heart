@@ -18,6 +18,7 @@ def create_rule(db: Session, payload):
         trigger_type=payload.trigger_type,
         condition_json=json.dumps(payload.condition_json),
         action_json=json.dumps(payload.action_json),
+        scope_json=json.dumps(getattr(payload, "scope_json", {}) or {}),
         is_enabled=payload.is_enabled,
     )
     db.add(rule)
@@ -38,8 +39,31 @@ def evaluate_rules(db: Session, event_type: str, payload: dict) -> list[dict]:
         action = json.loads(rule.action_json)
         matched = all(payload.get(key) == value for key, value in conditions.items())
         if matched:
+            rule.last_triggered_at = datetime.now(timezone.utc)
+            db.add(rule)
             matches.append({"rule": rule.name, "organization_id": rule.organization_id, "action": action, "payload": payload})
+    db.commit()
     return matches
+
+
+def update_rule(db: Session, rule: AutomationRule, payload):
+    rule.name = payload.name
+    rule.description = payload.description
+    rule.trigger_type = payload.trigger_type
+    rule.condition_json = json.dumps(payload.condition_json)
+    rule.action_json = json.dumps(payload.action_json)
+    rule.scope_json = json.dumps(payload.scope_json or {})
+    rule.is_enabled = payload.is_enabled
+    db.add(rule)
+    db.commit()
+    db.refresh(rule)
+    return rule
+
+
+def delete_rule(db: Session, rule: AutomationRule):
+    db.delete(rule)
+    db.commit()
+    return {"deleted": True}
 
 
 def run_sla_scan(db: Session) -> list[dict]:

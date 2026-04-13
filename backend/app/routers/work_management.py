@@ -199,7 +199,7 @@ def post_approval_request(
     task = get_task_by_id(db, payload.task_id)
     if not task or not can_view_task(current_user, task):
         raise HTTPException(status_code=404, detail="Task unavailable")
-    return request_approval(db, task=task, actor=current_user)
+    return request_approval(db, task=task, actor=current_user, reason=payload.reason)
 
 
 @router.patch("/approvals/{approval_id}", response_model=TaskApprovalRead)

@@ -35,6 +35,7 @@ def create_knowledge_item(db: Session, payload, organization_id: int):
     db.add(item)
     db.commit()
     db.refresh(item)
+    item.current_version = 1
     return item
 
 

@@ -3,8 +3,11 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AppShell from "./layout/AppShell";
 import AIAssistantPage from "./pages/AIAssistantPage";
 import ActivityPage from "./pages/ActivityPage";
+import AnnouncementsPage from "./pages/AnnouncementsPage";
+import ApprovalsPage from "./pages/ApprovalsPage";
 import AutomationPage from "./pages/AutomationPage";
 import ChatPage from "./pages/ChatPage";
+import ContactsPage from "./pages/ContactsPage";
 import DashboardPage from "./pages/DashboardPage";
 import EmployeesPage from "./pages/EmployeesPage";
 import GlobalControlCenterPage from "./pages/GlobalControlCenterPage";
@@ -12,12 +15,17 @@ import KnowledgePage from "./pages/KnowledgePage";
 import LoginPage from "./pages/LoginPage";
 import MyWorkPage from "./pages/MyWorkPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import OnboardingPage from "./pages/OnboardingPage";
 import OrganizationsPage from "./pages/OrganizationsPage";
 import PermissionsPage from "./pages/PermissionsPage";
 import PlanningPage from "./pages/PlanningPage";
+import ProfilePage from "./pages/ProfilePage";
 import ReportsPage from "./pages/ReportsPage";
+import SearchPage from "./pages/SearchPage";
 import SettingsPage from "./pages/SettingsPage";
 import TasksPage from "./pages/TasksPage";
+import MeetingsPage from "./pages/MeetingsPage";
+import EmployeeProfilePage from "./pages/EmployeeProfilePage";
 
 function App() {
   return (
@@ -33,16 +41,25 @@ function App() {
                 <Route path="/my-work" element={<ProtectedRoute roles={["USER"]}><MyWorkPage /></ProtectedRoute>} />
                 <Route path="/organizations" element={<ProtectedRoute roles={["SUPER_ADMIN"]}><OrganizationsPage /></ProtectedRoute>} />
                 <Route path="/planning" element={<ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "MANAGER"]}><PlanningPage /></ProtectedRoute>} />
+                <Route path="/approvals" element={<ApprovalsPage />} />
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/knowledge" element={<KnowledgePage />} />
                 <Route path="/tasks" element={<TasksPage />} />
                 <Route path="/automation" element={<ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "MANAGER"]}><AutomationPage /></ProtectedRoute>} />
+                <Route path="/meetings" element={<MeetingsPage />} />
+                <Route path="/announcements" element={<AnnouncementsPage importantOnly={false} />} />
+                <Route path="/messages" element={<AnnouncementsPage importantOnly />} />
+                <Route path="/contacts" element={<ContactsPage />} />
                 <Route path="/employees" element={<ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "MANAGER"]}><EmployeesPage /></ProtectedRoute>} />
                 <Route path="/activity" element={<ActivityPage />} />
                 <Route path="/ai" element={<AIAssistantPage />} />
                 <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/search" element={<SearchPage />} />
+                <Route path="/onboarding" element={<OnboardingPage />} />
                 <Route path="/reports" element={<ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "MANAGER"]}><ReportsPage /></ProtectedRoute>} />
                 <Route path="/permissions" element={<PermissionsPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/people/:userId" element={<EmployeeProfilePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/control-center" element={<ProtectedRoute roles={["SUPER_ADMIN"]}><GlobalControlCenterPage /></ProtectedRoute>} />
                 <Route path="*" element={<Navigate to="/" replace />} />

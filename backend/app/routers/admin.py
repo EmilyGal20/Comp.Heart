@@ -6,7 +6,9 @@ from app.db.session import get_db
 from app.models.task import Task, TaskActivity
 from app.models.user import Team, User
 from app.schemas.user import UserRead
+from app.services.command_center_service import get_command_center_payload
 from app.services.dashboard_service import get_dashboard_summary
+from app.services.onboarding_service import organization_onboarding_summary
 from app.services.organization_service import organization_overview
 from app.services.task_service import list_tasks
 from app.utils.dependencies import get_current_user, require_min_role, resolve_org_scope
@@ -89,3 +91,29 @@ def admin_activity(
         query = query.filter(Task.organization_id == scoped_org_id)
     items = query.order_by(TaskActivity.created_at.desc()).limit(limit).all()
     return [{"id": item.id, "task_id": item.task_id, "event_type": item.action_type, "message": item.message, "created_at": item.created_at, "user_id": item.user_id} for item in items]
+
+
+@router.get("/command-center")
+def command_center(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_min_role(ROLE_SUPER_ADMIN)),
+):
+    return get_command_center_payload(db)
+
+
+@router.get("/control-center")
+def control_center(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_min_role(ROLE_SUPER_ADMIN)),
+):
+    return get_command_center_payload(db)
+
+
+@router.get("/onboarding-overview")
+def onboarding_overview(
+    organization_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_min_role(ROLE_ADMIN)),
+):
+    scoped_org_id = resolve_org_scope(organization_id, current_user, db, allow_global=False)
+    return organization_onboarding_summary(db, organization_id=scoped_org_id)

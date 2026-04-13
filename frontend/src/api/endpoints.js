@@ -18,6 +18,8 @@ export const usersApi = {
   detail: (id) => api.get(`/users/${id}`),
   myDashboard: () => api.get("/users/me/dashboard"),
   selectableRecipients: () => api.get("/users/selectable-recipients"),
+  myProfile: () => api.get("/users/me/profile"),
+  profile: (id) => api.get(`/users/${id}/profile`),
 };
 
 export const knowledgeApi = {
@@ -25,6 +27,9 @@ export const knowledgeApi = {
   search: (params) => api.get("/knowledge/search", { params }),
   detail: (id) => api.get(`/knowledge/${id}`),
   create: (payload) => api.post("/knowledge", payload),
+  update: (id, payload) => api.put(`/knowledge/${id}`, payload),
+  versions: (id) => api.get(`/knowledge/${id}/versions`),
+  restoreVersion: (id, versionId) => api.post(`/knowledge/${id}/restore-version/${versionId}`),
 };
 
 export const tasksApi = {
@@ -78,13 +83,17 @@ export const workApi = {
 export const automationApi = {
   list: (params) => api.get("/automation", { params }),
   create: (payload) => api.post("/automation", payload),
+  update: (id, payload) => api.put(`/automation/${id}`, payload),
   toggle: (id) => api.patch(`/automation/${id}/toggle`),
+  remove: (id) => api.delete(`/automation/${id}`),
   evaluate: (payload) => api.post("/automation/evaluate", payload),
 };
 
 export const notificationsApi = {
   list: (params) => api.get("/notifications", { params }),
   markRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllRead: (params) => api.patch("/notifications/read-all", null, { params }),
+  bulkRead: (ids) => api.patch("/notifications/bulk-read", ids),
 };
 
 export const aiApi = {
@@ -113,6 +122,9 @@ export const adminApi = {
   users: (params) => api.get("/admin/users", { params }),
   tasks: (params) => api.get("/admin/tasks", { params }),
   activity: (params) => api.get("/admin/activity", { params }),
+  commandCenter: () => api.get("/admin/command-center"),
+  controlCenter: () => api.get("/admin/control-center"),
+  onboardingOverview: (params) => api.get("/admin/onboarding-overview", { params }),
 };
 
 export const chatApi = {
@@ -148,4 +160,46 @@ export const settingsApi = {
   updateWorkspace: (payload) => api.put("/settings/workspace", payload),
   organization: () => api.get("/settings/organization"),
   updateOrganization: (payload) => api.put("/settings/organization", payload),
+};
+
+export const approvalsApi = {
+  dashboard: (params) => api.get("/approvals/dashboard", { params }),
+  list: (params) => api.get("/approvals", { params }),
+  update: (id, payload) => api.patch(`/approvals/${id}`, payload),
+};
+
+export const announcementsApi = {
+  list: (params) => api.get("/announcements", { params }),
+  create: (payload) => api.post("/announcements", payload),
+  update: (id, payload) => api.put(`/announcements/${id}`, payload),
+  markRead: (id) => api.patch(`/announcements/${id}/read`),
+};
+
+export const meetingsApi = {
+  list: () => api.get("/meetings"),
+  summarize: (payload) => api.post("/meetings/summarize", payload),
+  detail: (id) => api.get(`/meetings/${id}`),
+  createTasks: (id) => api.post(`/meetings/${id}/tasks`),
+};
+
+export const selfNotesApi = {
+  list: (params) => api.get("/self-notes", { params }),
+  create: (payload) => api.post("/self-notes", payload),
+  update: (id, payload) => api.put(`/self-notes/${id}`, payload),
+  remove: (id) => api.delete(`/self-notes/${id}`),
+};
+
+export const contactsApi = {
+  list: (params) => api.get("/contacts", { params }),
+};
+
+export const onboardingApi = {
+  list: (params) => api.get("/onboarding", { params }),
+  me: () => api.get("/onboarding/me"),
+  updateStep: (id, payload) => api.patch(`/onboarding/steps/${id}`, payload),
+};
+
+export const searchApi = {
+  global: (params) => api.get("/search/global", { params }),
+  ai: (payload) => api.post("/search/ai", payload),
 };

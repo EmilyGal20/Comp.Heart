@@ -10,6 +10,7 @@ from app.models.collaboration import ChatChannel, ChatMembership, ChatMessage, O
 from app.models.knowledge import KnowledgeItem, KnowledgeTag
 from app.models.notification import Notification
 from app.models.organization import Organization
+from app.models.productivity import Announcement, AnnouncementRead, KnowledgeVersion, MeetingSummary, OnboardingStep, SelfNote, UserOnboardingProgress
 from app.models.task import Task, TaskActivity, TaskAttachment, TaskComment, TaskWatcher
 from app.models.user import Team, User
 from app.models.work_management import AuditLog, RecurringTask, Sprint, TaskApproval, TaskMessage, TaskTemplate
@@ -78,6 +79,13 @@ def seed_database(db: Session):
     ]
     db.add_all(knowledge_items)
     db.flush()
+    db.add_all(
+        [
+            KnowledgeVersion(knowledge_item_id=knowledge_items[0].id, version_number=1, title_snapshot=knowledge_items[0].title, content_snapshot="Initial incident command draft for support operations.", summary_snapshot="Initial draft", edited_by=users[1].id),
+            KnowledgeVersion(knowledge_item_id=knowledge_items[0].id, version_number=2, title_snapshot=knowledge_items[0].title, content_snapshot="Updated incident command process with stakeholder bridge guidance.", summary_snapshot="Stakeholder bridge update", edited_by=users[2].id),
+            KnowledgeVersion(knowledge_item_id=knowledge_items[1].id, version_number=1, title_snapshot=knowledge_items[1].title, content_snapshot="Release readiness checklist baseline.", summary_snapshot="Baseline release checklist", edited_by=users[4].id),
+        ]
+    )
 
     now = datetime.now(timezone.utc)
     tasks = [
@@ -171,8 +179,8 @@ def seed_database(db: Session):
     db.add_all(recurring)
 
     approvals = [
-        TaskApproval(task_id=tasks[1].id, requested_by=users[1].id, approved_by=users[2].id, status="APPROVED"),
-        TaskApproval(task_id=tasks[2].id, requested_by=users[4].id, approved_by=None, status="PENDING"),
+        TaskApproval(task_id=tasks[1].id, requested_by=users[1].id, approved_by=users[2].id, reason="Need sign-off before publishing workflow changes", status="APPROVED"),
+        TaskApproval(task_id=tasks[2].id, requested_by=users[4].id, approved_by=None, reason="Release command center needs approval before launch", status="PENDING"),
     ]
     db.add_all(approvals)
 
@@ -201,6 +209,61 @@ def seed_database(db: Session):
             ChatMessage(channel_id=channels[1].id, user_id=users[2].id, message="Please keep escalation handoffs concise and tagged with @name when ownership shifts."),
             ChatMessage(channel_id=channels[2].id, user_id=users[5].id, message="Telemetry blocker is still active. We should avoid release sign-off until it is closed."),
             ChatMessage(channel_id=channels[3].id, user_id=users[8].id, message="West region training coverage is looking good. Final store roster lands tomorrow morning."),
+        ]
+    )
+
+    announcements = [
+        Announcement(organization_id=organizations[0].id, title="Billing escalation comms change", content="Support leaders should now use the updated stakeholder bridge template for billing incidents.", severity="high", is_pinned=True, created_by=users[1].id, target_role="MANAGER", target_team_id=teams[1].id),
+        Announcement(organization_id=organizations[1].id, title="Release freeze window", content="Aether enters a release freeze every Thursday 18:00-20:00 before production windows.", severity="medium", is_pinned=False, created_by=users[4].id, target_role=None, target_team_id=None),
+        Announcement(organization_id=organizations[2].id, title="Store rollout policy update", content="All rollout training confirmations must be logged before a regional cutover is approved.", severity="critical", is_pinned=True, created_by=users[7].id, target_role="USER", target_team_id=teams[5].id),
+    ]
+    db.add_all(announcements)
+    db.flush()
+    db.add_all(
+        [
+            AnnouncementRead(announcement_id=announcements[0].id, user_id=users[2].id, is_read=True),
+            AnnouncementRead(announcement_id=announcements[1].id, user_id=users[6].id, is_read=False),
+        ]
+    )
+
+    meeting_summaries = [
+        MeetingSummary(organization_id=organizations[0].id, team_id=teams[1].id, title="Billing escalation review", raw_notes="Reviewed webhook failures, stakeholder update cadence, and ownership clarity.", summary="The team aligned on the billing escalation fix path, stakeholder update owner, and follow-up template refresh.", created_by=users[2].id),
+        MeetingSummary(organization_id=organizations[1].id, team_id=teams[3].id, title="Release readiness sync", raw_notes="Telemetry blocker, release freeze, and rollback owner review.", summary="The team agreed to hold release sign-off until telemetry gaps close and clarified rollback ownership.", created_by=users[5].id),
+    ]
+    meeting_summaries[0].action_items = ["Confirm webhook fix deployment", "Publish stakeholder update", "Refresh escalation template"]
+    meeting_summaries[0].decisions = ["Use updated stakeholder bridge", "Escalation owner remains support manager"]
+    meeting_summaries[0].followups = ["Review webhook metrics tomorrow", "Confirm comms template adoption next week"]
+    meeting_summaries[1].action_items = ["Close telemetry blocker", "Validate rollback owner", "Reconfirm release window"]
+    meeting_summaries[1].decisions = ["Do not sign off release yet", "Keep freeze window intact"]
+    meeting_summaries[1].followups = ["Re-run readiness check tomorrow"]
+    db.add_all(meeting_summaries)
+
+    db.add_all(
+        [
+            SelfNote(user_id=users[3].id, title="Billing check-in", content="Need to confirm claim webhook logs after lunch.", is_pinned=True, color="amber"),
+            SelfNote(user_id=users[6].id, title="Release blocker", content="Ask Noah for telemetry dashboard access before the next sync.", is_pinned=False, color="violet"),
+            SelfNote(user_id=users[9].id, title="Training follow-up", content="Send west region training checklist to store leads.", is_pinned=True, color="cyan"),
+        ]
+    )
+
+    onboarding_steps = [
+        OnboardingStep(title="Complete your profile", description="Add your title, responsibilities, and team context so others can route work correctly.", role_target=None, action_path="/profile", action_label="Open profile", step_type="profile", sort_order=1),
+        OnboardingStep(title="Review key announcements", description="Read the latest important admin messages and org-wide updates.", role_target=None, action_path="/messages", action_label="Open messages", step_type="communications", sort_order=2),
+        OnboardingStep(title="Read the operating guide", description="Review the highest-priority knowledge doc for your organization.", role_target="USER", organization_id=organizations[1].id, action_path="/knowledge", action_label="Open knowledge", step_type="knowledge", sort_order=3),
+        OnboardingStep(title="Join your team channels", description="Open chat, review your org channels, and introduce yourself in the right room.", role_target=None, action_path="/chat", action_label="Open chat", step_type="collaboration", sort_order=4),
+        OnboardingStep(title="Review assigned work", description="Check your open tasks, due dates, and SLA expectations.", role_target=None, action_path="/tasks", action_label="Open tasks", step_type="work", sort_order=5),
+        OnboardingStep(title="Configure workspace preferences", description="Choose your task view, density, and notification defaults.", role_target=None, action_path="/settings", action_label="Open settings", step_type="settings", sort_order=6),
+        OnboardingStep(title="Set up organization operations", description="Review approval defaults, recurring execution, and org notification routing.", role_target="ADMIN", action_path="/settings", action_label="Open org settings", step_type="admin-setup", sort_order=7),
+        OnboardingStep(title="Review organization health", description="Start in the command center and review the highest-risk orgs and alerts.", role_target="SUPER_ADMIN", action_path="/control-center", action_label="Open command center", step_type="system-setup", sort_order=8),
+    ]
+    db.add_all(onboarding_steps)
+    db.flush()
+    db.add_all(
+        [
+            UserOnboardingProgress(user_id=users[3].id, step_id=onboarding_steps[0].id, is_completed=True),
+            UserOnboardingProgress(user_id=users[3].id, step_id=onboarding_steps[1].id, is_completed=False),
+            UserOnboardingProgress(user_id=users[1].id, step_id=onboarding_steps[6].id, is_completed=True),
+            UserOnboardingProgress(user_id=users[0].id, step_id=onboarding_steps[7].id, is_completed=False),
         ]
     )
 

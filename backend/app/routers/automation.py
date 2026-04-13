@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 from app.core.permissions import ROLE_ADMIN, ROLE_MANAGER
 from app.db.session import get_db
 from app.models.automation import AutomationRule
-from app.schemas.automation import AutomationEvaluateRequest, AutomationRuleCreate, AutomationRuleRead
-from app.services.automation_service import create_rule, evaluate_rules
+from app.schemas.automation import AutomationEvaluateRequest, AutomationRuleCreate, AutomationRuleRead, AutomationRuleUpdate
+from app.services.automation_service import create_rule, delete_rule, evaluate_rules, update_rule
 from app.utils.dependencies import get_current_user, require_min_role, resolve_org_scope
 
 
@@ -56,6 +56,32 @@ def toggle_rule(rule_id: int, db: Session = Depends(get_db), current_user=Depend
     db.commit()
     db.refresh(rule)
     return rule
+
+
+@router.put("/{rule_id}", response_model=AutomationRuleRead)
+def put_rule(
+    rule_id: int,
+    payload: AutomationRuleUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_min_role(ROLE_ADMIN)),
+):
+    rule = db.query(AutomationRule).filter(AutomationRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Automation rule not found")
+    if current_user.role != "SUPER_ADMIN" and rule.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Cross-organization access denied")
+    payload.organization_id = rule.organization_id
+    return update_rule(db, rule, payload)
+
+
+@router.delete("/{rule_id}")
+def remove_rule(rule_id: int, db: Session = Depends(get_db), current_user=Depends(require_min_role(ROLE_ADMIN))):
+    rule = db.query(AutomationRule).filter(AutomationRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Automation rule not found")
+    if current_user.role != "SUPER_ADMIN" and rule.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Cross-organization access denied")
+    return delete_rule(db, rule)
 
 
 @router.post("/evaluate")

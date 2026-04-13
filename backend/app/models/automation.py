@@ -14,7 +14,9 @@ class AutomationRule(Base):
     trigger_type = Column(String(80), nullable=False)
     condition_json = Column(Text, nullable=False)
     action_json = Column(Text, nullable=False)
+    scope_json = Column(Text, default="{}", nullable=False)
     is_enabled = Column(Boolean, default=True, nullable=False)
+    last_triggered_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     organization = relationship("Organization", back_populates="automation_rules")

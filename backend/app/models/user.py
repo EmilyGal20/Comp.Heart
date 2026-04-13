@@ -45,3 +45,5 @@ class User(Base):
     chat_messages = relationship("ChatMessage", back_populates="user")
     sent_emails = relationship("SentEmail", back_populates="sender")
     workspace_setting = relationship("UserWorkspaceSetting", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    self_notes = relationship("SelfNote", back_populates="user", cascade="all, delete-orphan")
+    onboarding_progress = relationship("UserOnboardingProgress", back_populates="user", cascade="all, delete-orphan")

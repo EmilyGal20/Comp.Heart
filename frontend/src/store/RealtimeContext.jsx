@@ -5,13 +5,13 @@ import { useAuth } from "./AuthContext";
 const RealtimeContext = createContext(null);
 
 function shouldBump(kind, eventType) {
-  if (kind === "notifications") return eventType.startsWith("notification") || eventType === "task_mentioned";
+  if (kind === "notifications") return eventType.startsWith("notification") || eventType === "task_mentioned" || eventType.startsWith("announcement_");
   if (kind === "tasks") return eventType.startsWith("task_");
   if (kind === "chat") return eventType.startsWith("chat_") || eventType === "task_message_created";
-  if (kind === "analytics") return eventType.includes("approval") || eventType.includes("recurring") || eventType.includes("task_");
-  if (kind === "activity") return eventType.startsWith("task_") || eventType === "organization_updated" || eventType === "user_updated";
+  if (kind === "analytics") return eventType.includes("approval") || eventType.includes("recurring") || eventType.includes("task_") || eventType === "meeting_tasks_created" || eventType === "onboarding_updated";
+  if (kind === "activity") return eventType.startsWith("task_") || eventType.startsWith("announcement_") || eventType.startsWith("meeting_") || eventType === "organization_updated" || eventType === "user_updated" || eventType === "onboarding_updated";
   if (kind === "organizations") return eventType.startsWith("organization_");
-  if (kind === "users") return eventType === "user_updated";
+  if (kind === "users") return eventType === "user_updated" || eventType === "onboarding_updated";
   return false;
 }
 

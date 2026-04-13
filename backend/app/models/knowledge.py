@@ -31,6 +31,7 @@ class KnowledgeItem(Base):
     author = relationship("User", back_populates="knowledge_items")
     tags = relationship("KnowledgeTag", secondary=knowledge_tags, back_populates="items")
     tasks = relationship("Task", back_populates="related_knowledge")
+    versions = relationship("KnowledgeVersion", back_populates="knowledge_item", cascade="all, delete-orphan")
 
 
 class KnowledgeTag(Base):

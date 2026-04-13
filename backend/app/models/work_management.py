@@ -61,6 +61,7 @@ class TaskApproval(Base):
     task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
     requested_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    reason = Column(Text, nullable=True)
     status = Column(String(30), default="PENDING", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

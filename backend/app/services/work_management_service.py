@@ -206,8 +206,8 @@ def run_recurring_generation(db: Session):
     return generated
 
 
-def request_approval(db: Session, *, task: Task, actor: User):
-    approval = TaskApproval(task_id=task.id, requested_by=actor.id, status="PENDING")
+def request_approval(db: Session, *, task: Task, actor: User, reason: str | None = None):
+    approval = TaskApproval(task_id=task.id, requested_by=actor.id, reason=reason, status="PENDING")
     db.add(approval)
     db.flush()
     log_audit_event(db, organization_id=task.organization_id, user_id=actor.id, action="approval_requested", entity_type="TaskApproval", entity_id=approval.id, details=task.title)

@@ -17,6 +17,16 @@ class KnowledgeCreate(BaseModel):
     is_published: bool = True
 
 
+class KnowledgeUpdate(BaseModel):
+    title: str
+    category: str
+    content: str
+    summary: str
+    tag_names: List[str] = []
+    author_id: Optional[int] = None
+    is_published: bool = True
+
+
 class KnowledgeTagRead(BaseModel):
     id: int
     name: str
@@ -36,6 +46,7 @@ class KnowledgeRead(BaseModel):
     is_published: bool
     created_at: datetime
     updated_at: datetime
+    current_version: int = 1
     author: Optional[UserRead] = None
     tags: List[KnowledgeTagRead] = []
 

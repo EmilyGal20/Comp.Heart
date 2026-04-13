@@ -94,6 +94,7 @@ def organization_overview(db: Session):
                     db.query(Notification.title)
                     .filter(Notification.organization_id == organization.id)
                     .order_by(Notification.created_at.desc())
+                    .limit(1)
                     .scalar()
                     or "No recent activity"
                 ),

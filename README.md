@@ -21,6 +21,17 @@ CompHeart is a premium internal company operating system for multi-organization 
 - Slack-style internal chat with organization channels, team channels, task-linked threads, and live mentions.
 - Integration-ready GitHub, Slack, and Email architecture with real settings surfaces.
 - Predictive SLA analytics for at-risk tasks, overloaded users, and team risk visibility.
+- Dedicated approvals dashboard with role-aware queues and quick approval actions.
+- Visual automation builder with trigger, condition, action, and scope editing.
+- Knowledge document version history with revision restore support.
+- Organization announcements plus a dedicated important admin messages view.
+- AI meeting summaries with action-item extraction and task creation.
+- Personal self notes, a company contacts directory, and a restructured dashboard experience.
+- New employee onboarding with role-aware steps, recommendations, and progress tracking.
+- Full employee profile pages with task, notification, activity, and meeting context.
+- Advanced notification center with grouping, filtering, bulk read, and live updates.
+- AI-powered global search across tasks, knowledge, meetings, announcements, people, approvals, and discussions.
+- Stabilized Super Admin command center and fixed control-center loading path with stronger fallbacks.
 - More breathable layout polish with wider gutters, calmer spacing, and more centered content zones.
 
 ## Phase Upgrade Summary
@@ -149,6 +160,15 @@ compheart/
 - `integrations`: GitHub, Slack, and Email settings plus internal email workflows
 - `settings`: profile, workspace, and organization operations defaults
 - `analytics`: explainable task, user, and team SLA risk scoring
+- `approvals`: dashboard-grade approval listing and decision workflows
+- `announcements`: organization communication streams and important-message reads
+- `meetings`: AI meeting summaries and task creation from action items
+- `self_notes`: private notes that stay scoped to one user
+- `contacts`: organization-aware directory queries
+- `onboarding`: role-aware onboarding checklists, progress tracking, and recommended next steps
+- `search`: global and AI-assisted search across the platform with strict permission-aware results
+- `profiles`: richer employee profile aggregation for work, activity, approvals, and meetings
+- `command_center`: super-admin platform oversight with health, alerts, automation, and audit visibility
 
 ## Database Models
 
@@ -175,6 +195,13 @@ compheart/
 - `SentEmail`
 - `UserWorkspaceSetting`
 - `OrganizationSetting`
+- `KnowledgeVersion`
+- `Announcement`
+- `AnnouncementRead`
+- `MeetingSummary`
+- `SelfNote`
+- `OnboardingStep`
+- `UserOnboardingProgress`
 - `AutomationRule`
 - `Notification`
 - `AIConversation`
@@ -313,6 +340,9 @@ Admin / Global:
 - `GET /api/admin/users`
 - `GET /api/admin/tasks`
 - `GET /api/admin/activity`
+- `GET /api/admin/command-center`
+- `GET /api/admin/control-center`
+- `GET /api/admin/onboarding-overview`
 
 Users:
 
@@ -329,6 +359,9 @@ Knowledge:
 - `GET /api/knowledge/search`
 - `POST /api/knowledge`
 - `GET /api/knowledge/{id}`
+- `PUT /api/knowledge/{id}`
+- `GET /api/knowledge/{id}/versions`
+- `POST /api/knowledge/{id}/restore-version/{version_id}`
 
 Tasks:
 
@@ -371,6 +404,53 @@ Work Management:
 - `GET /api/work/reports/tasks.csv`
 - `GET /api/work/audit-logs`
 - `GET /api/work/permissions/matrix`
+
+Approvals:
+
+- `GET /api/approvals/dashboard`
+- `GET /api/approvals`
+- `PATCH /api/approvals/{id}`
+
+Announcements:
+
+- `GET /api/announcements`
+- `POST /api/announcements`
+- `PUT /api/announcements/{id}`
+- `PATCH /api/announcements/{id}/read`
+
+Meetings:
+
+- `GET /api/meetings`
+- `POST /api/meetings/summarize`
+- `GET /api/meetings/{id}`
+- `POST /api/meetings/{id}/tasks`
+
+Self Notes:
+
+- `GET /api/self-notes`
+- `POST /api/self-notes`
+- `PUT /api/self-notes/{id}`
+- `DELETE /api/self-notes/{id}`
+
+Contacts:
+
+- `GET /api/contacts`
+
+Onboarding:
+
+- `GET /api/onboarding`
+- `GET /api/onboarding/me`
+- `PATCH /api/onboarding/steps/{id}`
+
+Profiles:
+
+- `GET /api/users/me/profile`
+- `GET /api/users/{id}/profile`
+
+Search:
+
+- `GET /api/search/global`
+- `POST /api/search/ai`
 
 Chat:
 
@@ -445,18 +525,47 @@ The frontend now includes:
 - role-aware sidebar navigation
 - top-bar organization context and super admin switcher
 - dedicated global control center for super admins
+- stabilized command center with resilient loading, error handling, and single-endpoint data aggregation
 - dedicated organizations management page for super admins
 - improved admin and manager workflows
 - personalized user dashboard and My Work area
+- dedicated onboarding workspace and AI/global search page
+- full employee profile pages linked from contacts and people management
+- approvals workspace with dashboard cards, filtered queues, and direct approve or reject actions
 - planning workspace with sprint and backlog controls
 - drag-and-drop backlog and sprint movement
+- announcement center for company updates and a dedicated important admin messages page
+- meetings workspace for AI summaries and action-item-to-task conversion
+- knowledge version history and document restore controls
 - dedicated chat workspace for channels and fast collaboration
+- company contacts workspace for fast directory lookup
 - report center with export actions and audit visibility
 - permission matrix page
 - activity feed page
 - org-aware knowledge, tasks, notifications, and AI flows
 - rich task detail drawer with comments, chat, timeline, attachments, editing, watchers, subtasks, approvals, and AI actions
 - real settings workspace with profile, integrations, workspace defaults, and org controls
+
+## Product Organization
+
+The product is now grouped by workspace so features live in the page where operators expect to find them:
+
+- `Dashboard`: role-aware overview widgets, announcements, approvals, notes, risk, and recent activity
+- `Command Center`: super-admin global control, org health, alerts, automation health, and audit activity
+- `Tasks`: list, board, calendar, timeline, detail drawer, comments, chat, attachments, and AI helpers
+- `Planning`: sprints, backlog, templates, recurring tasks, and drag-and-drop planning
+- `Approvals`: approval queue, decision workflow, and approval analytics
+- `Knowledge`: documents, search, version history, and restore actions
+- `Meetings`: AI meeting summaries and task conversion
+- `Chat`: org, team, and task-linked communication
+- `Announcements`: organization announcements and important admin messages
+- `Contacts`: company directory and fast people lookup
+- `Search`: AI and global search across tasks, knowledge, meetings, announcements, people, approvals, and discussion
+- `Onboarding`: onboarding progress, role-aware setup steps, docs, contacts, and task guidance
+- `Reports`: trends, exports, workload, SLA posture, and audit visibility
+- `Automation`: automation builder and rule library
+- `Settings`: profile, workspace, organization defaults, and integrations
+- `Profile`: personal identity context and self notes
 
 ## Task Collaboration Upgrade
 
@@ -507,6 +616,7 @@ CompHeart now includes a websocket live-update channel:
 - channel chat messages update live
 - sprint and backlog changes can update live
 - recurring task generation and approval decisions can publish live updates
+- announcements, approval decisions, and meeting-generated tasks can publish live updates
 - email send notifications can publish live updates
 - notification badges and mention alerts update live
 - organization and user management changes can propagate to connected clients
@@ -522,6 +632,10 @@ CompHeart now includes a websocket live-update channel:
 - `task_message_created`
 - `task_assigned`
 - `approval_updated`
+- `announcement_created`
+- `announcement_updated`
+- `meeting_summary_created`
+- `meeting_tasks_created`
 - `recurring_task_created`
 - `backlog_updated`
 - `sprint_updated`
@@ -550,6 +664,15 @@ This upgrade changes the SQLite schema again to support planning and governance 
 - `sent_emails`
 - `user_workspace_settings`
 - `organization_settings`
+- `knowledge_versions`
+- `announcements`
+- `announcement_reads`
+- `meeting_summaries`
+- `self_notes`
+- `onboarding_steps`
+- `user_onboarding_progress`
+- automation fields `scope_json` and `last_triggered_at`
+- approval field `reason`
 
 On startup, CompHeart detects older incompatible SQLite schemas and rebuilds the local database automatically so the latest seed can initialize cleanly.
 
@@ -577,8 +700,11 @@ The current seed now includes:
 - reusable templates
 - recurring task definitions
 - pending and completed approvals
+- approval reasons and approval dashboard-ready records
 - task chat messages
 - seeded chat channels, integration settings, and sent email history
+- document version history, announcements, meeting summaries, and self notes
+- onboarding step definitions and seeded onboarding progress
 - audit log records
 - watchers, subtasks, comments, and notifications that still respect org boundaries
 
