@@ -4,6 +4,7 @@ import AppShell from "./layout/AppShell";
 import AIAssistantPage from "./pages/AIAssistantPage";
 import ActivityPage from "./pages/ActivityPage";
 import AutomationPage from "./pages/AutomationPage";
+import ChatPage from "./pages/ChatPage";
 import DashboardPage from "./pages/DashboardPage";
 import EmployeesPage from "./pages/EmployeesPage";
 import GlobalControlCenterPage from "./pages/GlobalControlCenterPage";
@@ -32,6 +33,7 @@ function App() {
                 <Route path="/my-work" element={<ProtectedRoute roles={["USER"]}><MyWorkPage /></ProtectedRoute>} />
                 <Route path="/organizations" element={<ProtectedRoute roles={["SUPER_ADMIN"]}><OrganizationsPage /></ProtectedRoute>} />
                 <Route path="/planning" element={<ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "MANAGER"]}><PlanningPage /></ProtectedRoute>} />
+                <Route path="/chat" element={<ChatPage />} />
                 <Route path="/knowledge" element={<KnowledgePage />} />
                 <Route path="/tasks" element={<TasksPage />} />
                 <Route path="/automation" element={<ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "MANAGER"]}><AutomationPage /></ProtectedRoute>} />

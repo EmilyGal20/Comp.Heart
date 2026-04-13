@@ -28,3 +28,7 @@ class Organization(Base):
     automation_rules = relationship("AutomationRule", back_populates="organization")
     notifications = relationship("Notification", back_populates="organization")
     conversations = relationship("AIConversation", back_populates="organization")
+    chat_channels = relationship("ChatChannel", back_populates="organization")
+    integrations = relationship("OrganizationIntegration", back_populates="organization", cascade="all, delete-orphan")
+    sent_emails = relationship("SentEmail", back_populates="organization", cascade="all, delete-orphan")
+    settings = relationship("OrganizationSetting", back_populates="organization", uselist=False, cascade="all, delete-orphan")

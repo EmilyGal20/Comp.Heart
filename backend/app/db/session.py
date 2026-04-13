@@ -1,5 +1,5 @@
-from sqlalchemy import inspect
 from sqlalchemy import create_engine
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.core.config import get_settings
@@ -39,11 +39,36 @@ def initialize_database():
             needs_reset = True
     if "tasks" in existing_tables:
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
-        if "tags" not in task_columns or "related_knowledge_ids" not in task_columns or "parent_task_id" not in task_columns or "sprint_id" not in task_columns or "backlog_order" not in task_columns:
+        if "tags" not in task_columns or "related_knowledge_ids" not in task_columns or "parent_task_id" not in task_columns or "sprint_id" not in task_columns or "backlog_order" not in task_columns or "external_refs" not in task_columns:
             needs_reset = True
-    required_tables = {"task_activities", "task_attachments", "task_watchers", "sprints", "task_templates", "recurring_tasks", "task_approvals", "task_messages", "audit_logs"}
+    required_tables = {
+        "task_activities",
+        "task_attachments",
+        "task_watchers",
+        "sprints",
+        "task_templates",
+        "recurring_tasks",
+        "task_approvals",
+        "task_messages",
+        "audit_logs",
+        "chat_channels",
+        "chat_memberships",
+        "chat_messages",
+        "organization_integrations",
+        "sent_emails",
+        "user_workspace_settings",
+        "organization_settings",
+    }
     if any(table not in existing_tables for table in required_tables):
         needs_reset = True
+    if not needs_reset and {"organizations", "chat_channels", "organization_integrations", "user_workspace_settings"}.issubset(existing_tables):
+        with engine.connect() as connection:
+            org_count = connection.execute(text("SELECT COUNT(*) FROM organizations")).scalar() or 0
+            chat_count = connection.execute(text("SELECT COUNT(*) FROM chat_channels")).scalar() or 0
+            integration_count = connection.execute(text("SELECT COUNT(*) FROM organization_integrations")).scalar() or 0
+            workspace_count = connection.execute(text("SELECT COUNT(*) FROM user_workspace_settings")).scalar() or 0
+        if org_count and (chat_count == 0 or integration_count == 0 or workspace_count == 0):
+            needs_reset = True
     if needs_reset:
         Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)

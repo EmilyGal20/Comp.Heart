@@ -10,6 +10,7 @@ from app.models.task import Task, TaskActivity, TaskWatcher
 from app.models.user import Team, User
 from app.schemas.user import UserCreate, UserDashboard, UserRead, UserStatusUpdate, UserUpdate
 from app.services.audit_service import log_audit_event
+from app.services.integration_service import selectable_recipients
 from app.utils.dependencies import get_current_user, require_min_role, require_same_org_or_super
 
 
@@ -219,6 +220,11 @@ def my_dashboard(db: Session = Depends(get_db), current_user: User = Depends(get
             for activity in recent_activity
         ],
     }
+
+
+@router.get("/selectable-recipients", response_model=list[UserRead])
+def get_selectable_recipients(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return selectable_recipients(db, current_user=current_user)
 
 
 @router.get("/{user_id}", response_model=UserRead)

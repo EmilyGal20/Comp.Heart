@@ -17,6 +17,7 @@ class Task(Base):
     priority = Column(String(30), default="medium", nullable=False)
     tags_json = Column("tags", Text, default="[]", nullable=False)
     related_knowledge_ids_json = Column("related_knowledge_ids", Text, default="[]", nullable=False)
+    external_refs_json = Column("external_refs", Text, default="[]", nullable=False)
     parent_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
     sprint_id = Column(Integer, ForeignKey("sprints.id"), nullable=True)
     backlog_order = Column(Integer, default=0, nullable=False)
@@ -40,6 +41,7 @@ class Task(Base):
     watchers = relationship("TaskWatcher", back_populates="task", cascade="all, delete-orphan")
     approvals = relationship("TaskApproval", back_populates="task", cascade="all, delete-orphan")
     messages = relationship("TaskMessage", back_populates="task", cascade="all, delete-orphan")
+    sent_emails = relationship("SentEmail", back_populates="task")
     parent_task = relationship("Task", remote_side=[id], back_populates="subtasks")
     subtasks = relationship("Task", back_populates="parent_task", cascade="all, delete-orphan")
 
@@ -64,6 +66,17 @@ class Task(Base):
     @related_knowledge_ids.setter
     def related_knowledge_ids(self, value):
         self.related_knowledge_ids_json = json.dumps(value or [])
+
+    @property
+    def external_refs(self):
+        try:
+            return json.loads(self.external_refs_json or "[]")
+        except json.JSONDecodeError:
+            return []
+
+    @external_refs.setter
+    def external_refs(self, value):
+        self.external_refs_json = json.dumps(value or [])
 
 
 class TaskComment(Base):

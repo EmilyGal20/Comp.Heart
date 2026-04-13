@@ -247,6 +247,7 @@ def serialize_task_snapshot(task: Task):
         "sla_status": task.sla_status,
         "risk_score": getattr(task, "risk_score", 0),
         "parent_task_id": task.parent_task_id,
+        "external_refs": list(task.external_refs),
         "tags": list(task.tags),
         "subtask_progress": getattr(task, "subtask_progress", {"total": 0, "done": 0, "open": 0}),
     }
@@ -365,6 +366,7 @@ def create_task(db: Session, payload, organization_id: int, actor: User):
         priority=normalize_priority(payload.priority),
         tags=payload.tags,
         related_knowledge_ids=payload.related_knowledge_ids,
+        external_refs=getattr(payload, "external_refs", []),
         parent_task_id=payload.parent_task_id,
         sprint_id=getattr(payload, "sprint_id", None),
         assignee_id=payload.assignee_id,
@@ -439,6 +441,7 @@ def update_task(db: Session, *, task_id: int, payload, actor: User):
         "sla_hours": str(task.sla_hours),
         "related_knowledge_id": str(task.related_knowledge_id) if task.related_knowledge_id else None,
         "related_knowledge_ids": ", ".join(str(item) for item in task.related_knowledge_ids),
+        "external_refs": ", ".join(task.external_refs),
         "tags": ", ".join(task.tags),
         "parent_task_id": str(task.parent_task_id) if task.parent_task_id else None,
     }
@@ -450,6 +453,7 @@ def update_task(db: Session, *, task_id: int, payload, actor: User):
     task.priority = normalize_priority(payload.priority)
     task.tags = payload.tags
     task.related_knowledge_ids = payload.related_knowledge_ids
+    task.external_refs = getattr(payload, "external_refs", [])
     if payload.assignee_id != task.assignee_id and not can_reassign_task(actor, get_task_by_id(db, task.id)):
         raise HTTPException(status_code=403, detail="You do not have permission to reassign this task")
     task.assignee_id = payload.assignee_id
@@ -470,6 +474,7 @@ def update_task(db: Session, *, task_id: int, payload, actor: User):
         "sla_hours": str(task.sla_hours),
         "related_knowledge_id": str(task.related_knowledge_id) if task.related_knowledge_id else None,
         "related_knowledge_ids": ", ".join(str(item) for item in task.related_knowledge_ids),
+        "external_refs": ", ".join(task.external_refs),
         "tags": ", ".join(task.tags),
         "parent_task_id": str(task.parent_task_id) if task.parent_task_id else None,
         "sprint_id": str(task.sprint_id) if task.sprint_id else None,
@@ -505,7 +510,7 @@ def update_task(db: Session, *, task_id: int, payload, actor: User):
         notify_task_event(db, task=task, actor=actor, title="Task reassigned", message="was reassigned", user_id=task.assignee_id)
     if previous_values["status"] != change_map["status"]:
         notify_task_event(db, task=task, actor=actor, title="Task status updated", message=f"status is now {task.status}", user_id=task.assignee_id, role_target="MANAGER")
-    if any(previous_values[field] != change_map[field] for field in {"title", "description", "priority", "due_at", "sla_hours", "related_knowledge_id", "related_knowledge_ids", "tags"}):
+    if any(previous_values[field] != change_map[field] for field in {"title", "description", "priority", "due_at", "sla_hours", "related_knowledge_id", "related_knowledge_ids", "external_refs", "tags"}):
         notify_task_event(db, task=task, actor=actor, title="Task updated", message="details were updated", user_id=task.assignee_id)
     _notify_task_watchers(db, task=full_task, actor=actor, title="Task updated", message="was updated", exclude_user_ids={actor.id, task.assignee_id or 0})
     _publish_task_event("task_updated", full_task, {"message": f"{actor.full_name} updated {task.title}"})

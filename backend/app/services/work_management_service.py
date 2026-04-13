@@ -13,6 +13,7 @@ from app.models.organization import Organization
 from app.models.task import Task
 from app.models.user import User
 from app.models.work_management import RecurringTask, Sprint, TaskApproval, TaskMessage, TaskTemplate
+from app.models.collaboration import OrganizationSetting
 from app.schemas.work_management import PermissionMatrixEntry
 from app.services.audit_service import log_audit_event, list_audit_logs
 from app.services.task_service import create_task, enrich_task
@@ -189,6 +190,9 @@ def run_recurring_generation(db: Session):
     recurring_items = db.query(RecurringTask).options(joinedload(RecurringTask.template)).filter(RecurringTask.is_active.is_(True), RecurringTask.next_run_at <= now).all()
     generated = []
     for recurring in recurring_items:
+        setting = db.query(OrganizationSetting).filter(OrganizationSetting.organization_id == recurring.organization_id).first()
+        if setting and not setting.recurring_auto_run:
+            continue
         if recurring.template:
             system_actor = db.query(User).filter(User.organization_id == recurring.organization_id).order_by(User.id.asc()).first()
             if not system_actor:

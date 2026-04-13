@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.models.ai import AIConversation, AIMessage
 from app.models.automation import AutomationRule
+from app.models.collaboration import ChatChannel, ChatMembership, ChatMessage, OrganizationIntegration, OrganizationSetting, SentEmail, UserWorkspaceSetting
 from app.models.knowledge import KnowledgeItem, KnowledgeTag
 from app.models.notification import Notification
 from app.models.organization import Organization
@@ -51,6 +52,19 @@ def seed_database(db: Session):
     ]
     db.add_all(users)
     db.flush()
+    db.add_all(
+        [
+            UserWorkspaceSetting(user_id=user.id, default_task_view="board" if user.role in {"ADMIN", "MANAGER"} else "list", density="comfortable", notify_email=True, notify_desktop=True, theme_mode="dark")
+            for user in users
+        ]
+    )
+    db.add_all(
+        [
+            OrganizationSetting(organization_id=organizations[0].id, default_sla_hours=24, require_approval_for_critical=True, recurring_auto_run=True, slack_notifications_enabled=True, email_notifications_enabled=True),
+            OrganizationSetting(organization_id=organizations[1].id, default_sla_hours=18, require_approval_for_critical=True, recurring_auto_run=True, slack_notifications_enabled=True, email_notifications_enabled=True),
+            OrganizationSetting(organization_id=organizations[2].id, default_sla_hours=30, require_approval_for_critical=False, recurring_auto_run=True, slack_notifications_enabled=False, email_notifications_enabled=True),
+        ]
+    )
 
     tags = {name: KnowledgeTag(name=name) for name in ["incident", "sla", "process", "release", "automation", "onboarding", "retail", "ops"]}
     db.add_all(tags.values())
@@ -85,6 +99,8 @@ def seed_database(db: Session):
     tasks[4].backlog_order = 1
     tasks[5].backlog_order = 2
     tasks[6].backlog_order = 3
+    tasks[0].external_refs = ["https://github.com/compheart/demo/issues/41", "slack://northstar/incidents/billing"]
+    tasks[2].external_refs = ["https://github.com/compheart/demo/pull/88"]
 
     comments = [
         TaskComment(task_id=tasks[0].id, author_id=users[1].id, content="Raised this in the morning operations review.\nNeed an owner for the communication follow-up."),
@@ -149,7 +165,7 @@ def seed_database(db: Session):
     db.flush()
 
     recurring = [
-        RecurringTask(organization_id=organizations[0].id, template_id=templates[0].id, frequency="weekly", next_run_at=now + timedelta(days=7), is_active=True),
+        RecurringTask(organization_id=organizations[0].id, template_id=templates[0].id, frequency="weekly", next_run_at=now - timedelta(minutes=5), is_active=True),
         RecurringTask(organization_id=organizations[1].id, template_id=templates[1].id, frequency="monthly", next_run_at=now + timedelta(days=30), is_active=True),
     ]
     db.add_all(recurring)
@@ -166,6 +182,41 @@ def seed_database(db: Session):
         TaskMessage(task_id=tasks[2].id, user_id=users[5].id, message="Telemetry gap is still the blocker for sign-off."),
     ]
     db.add_all(messages)
+
+    channels = [
+        ChatChannel(organization_id=organizations[0].id, name="northstar-ops", description="Org-wide operations room", channel_type="ORG", is_private=False, created_by=users[1].id),
+        ChatChannel(organization_id=organizations[0].id, team_id=teams[1].id, name="support-command", description="Support command team room", channel_type="TEAM", is_private=False, created_by=users[2].id),
+        ChatChannel(organization_id=organizations[1].id, name="release-watch", description="Release readiness and risk coordination", channel_type="ORG", is_private=False, created_by=users[4].id),
+        ChatChannel(organization_id=organizations[2].id, name="store-rollouts", description="Rollout operations and launch updates", channel_type="ORG", is_private=False, created_by=users[7].id),
+    ]
+    db.add_all(channels)
+    db.flush()
+    for channel in channels:
+        eligible = [user for user in users if user.organization_id == channel.organization_id and (channel.team_id is None or user.team_id == channel.team_id)]
+        for member in eligible:
+            db.add(ChatMembership(channel_id=channel.id, user_id=member.id, unread_count=0))
+    db.add_all(
+        [
+            ChatMessage(channel_id=channels[0].id, user_id=users[1].id, message="Heads up: executive review of the billing incident starts at 14:00."),
+            ChatMessage(channel_id=channels[1].id, user_id=users[2].id, message="Please keep escalation handoffs concise and tagged with @name when ownership shifts."),
+            ChatMessage(channel_id=channels[2].id, user_id=users[5].id, message="Telemetry blocker is still active. We should avoid release sign-off until it is closed."),
+            ChatMessage(channel_id=channels[3].id, user_id=users[8].id, message="West region training coverage is looking good. Final store roster lands tomorrow morning."),
+        ]
+    )
+
+    db.add_all(
+        [
+            OrganizationIntegration(organization_id=organizations[0].id, provider="github", is_enabled=True, config_json='{"owner": "compheart", "repo": "northstar-ops", "webhook_status": "ready"}'),
+            OrganizationIntegration(organization_id=organizations[0].id, provider="slack", is_enabled=True, config_json='{"workspace": "northstar-hq", "default_channel": "#northstar-ops"}'),
+            OrganizationIntegration(organization_id=organizations[0].id, provider="email", is_enabled=True, config_json='{"sender_name": "Northstar Ops", "mode": "mock"}'),
+            OrganizationIntegration(organization_id=organizations[1].id, provider="github", is_enabled=True, config_json='{"owner": "compheart", "repo": "aether-platform", "webhook_status": "ready"}'),
+            OrganizationIntegration(organization_id=organizations[1].id, provider="slack", is_enabled=True, config_json='{"workspace": "aether-labs", "default_channel": "#release-watch"}'),
+            OrganizationIntegration(organization_id=organizations[1].id, provider="email", is_enabled=True, config_json='{"sender_name": "Aether Operations", "mode": "mock"}'),
+            OrganizationIntegration(organization_id=organizations[2].id, provider="github", is_enabled=False, config_json='{"owner": "compheart", "repo": "harbor-rollouts"}'),
+            OrganizationIntegration(organization_id=organizations[2].id, provider="slack", is_enabled=False, config_json='{"workspace": "harbor-commerce"}'),
+            OrganizationIntegration(organization_id=organizations[2].id, provider="email", is_enabled=True, config_json='{"sender_name": "Harbor Operations", "mode": "mock"}'),
+        ]
+    )
 
     rules = [
         AutomationRule(name="Northstar Overdue SLA Alert", description="Escalates overdue support tasks to the manager and notification center.", organization_id=organizations[0].id, trigger_type="task.updated", condition_json='{"sla_status": "breached"}', action_json='{"type": "notify", "audience": "managers", "severity": "critical"}', is_enabled=True),
@@ -189,8 +240,19 @@ def seed_database(db: Session):
         AuditLog(organization_id=organizations[0].id, user_id=users[1].id, action="user_created", entity_type="User", entity_id=users[3].id, details="leo@northstar.local"),
         AuditLog(organization_id=organizations[0].id, user_id=users[1].id, action="task_updated", entity_type="Task", entity_id=tasks[0].id, details="Stabilize patient billing escalation lane"),
         AuditLog(organization_id=organizations[1].id, user_id=users[4].id, action="approval_requested", entity_type="TaskApproval", entity_id=2, details="Prepare release command center"),
+        AuditLog(organization_id=organizations[0].id, user_id=users[1].id, action="integration_updated", entity_type="OrganizationIntegration", entity_id=1, details="github"),
     ]
     db.add_all(audit_logs)
+    email_log = SentEmail(
+        organization_id=organizations[0].id,
+        sender_user_id=users[1].id,
+        subject="Billing escalation leadership update",
+        body="Sharing the current status before the afternoon review.",
+        task_id=tasks[0].id,
+        status="SENT",
+    )
+    email_log.recipient_ids = [users[2].id, users[3].id]
+    db.add(email_log)
 
     conversations = [
         AIConversation(title="How do we handle Northstar incidents?", organization_id=organizations[0].id, user_id=users[3].id),

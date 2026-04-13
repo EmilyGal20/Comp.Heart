@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     uploads_dir: str = "uploads"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4.1-mini"
+    smtp_host: str | None = None
+    smtp_port: int | None = None
+    smtp_sender: str | None = None
+    recurring_poll_seconds: int = 60
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

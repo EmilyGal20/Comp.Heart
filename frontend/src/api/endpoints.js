@@ -17,6 +17,7 @@ export const usersApi = {
   updateStatus: (id, payload) => api.patch(`/users/${id}/status`, payload),
   detail: (id) => api.get(`/users/${id}`),
   myDashboard: () => api.get("/users/me/dashboard"),
+  selectableRecipients: () => api.get("/users/selectable-recipients"),
 };
 
 export const knowledgeApi = {
@@ -90,6 +91,9 @@ export const aiApi = {
   chat: (payload) => api.post("/ai/chat", payload),
   conversations: () => api.get("/ai/conversations"),
   conversation: (id) => api.get(`/ai/conversations/${id}`),
+  generateTasks: (payload) => api.post("/ai/generate-tasks", payload),
+  generateSubtasks: (payload) => api.post("/ai/generate-subtasks", payload),
+  suggestTaskPlan: (payload) => api.post("/ai/suggest-task-plan", payload),
 };
 
 export const organizationsApi = {
@@ -109,4 +113,39 @@ export const adminApi = {
   users: (params) => api.get("/admin/users", { params }),
   tasks: (params) => api.get("/admin/tasks", { params }),
   activity: (params) => api.get("/admin/activity", { params }),
+};
+
+export const chatApi = {
+  channels: (params) => api.get("/chat/channels", { params }),
+  createChannel: (payload) => api.post("/chat/channels", payload),
+  messages: (id) => api.get(`/chat/channels/${id}/messages`),
+  sendMessage: (id, payload) => api.post(`/chat/channels/${id}/messages`, payload),
+  taskThread: (taskId) => api.get(`/chat/task/${taskId}/thread`),
+};
+
+export const integrationsApi = {
+  summary: () => api.get("/integrations"),
+  github: () => api.get("/integrations/github"),
+  updateGithub: (payload) => api.put("/integrations/github", payload),
+  slack: () => api.get("/integrations/slack"),
+  updateSlack: (payload) => api.put("/integrations/slack", payload),
+  email: () => api.get("/integrations/email"),
+  updateEmail: (payload) => api.put("/integrations/email", payload),
+  sendEmail: (payload) => api.post("/integrations/email/send", payload),
+  emailHistory: () => api.get("/integrations/email/history"),
+};
+
+export const analyticsApi = {
+  slaRisk: (params) => api.get("/analytics/sla-risk", { params }),
+  userRisk: (params) => api.get("/analytics/user-risk", { params }),
+  teamRisk: (params) => api.get("/analytics/team-risk", { params }),
+};
+
+export const settingsApi = {
+  profile: () => api.get("/settings/profile"),
+  updateProfile: (payload) => api.put("/settings/profile", payload),
+  workspace: () => api.get("/settings/workspace"),
+  updateWorkspace: (payload) => api.put("/settings/workspace", payload),
+  organization: () => api.get("/settings/organization"),
+  updateOrganization: (payload) => api.put("/settings/organization", payload),
 };

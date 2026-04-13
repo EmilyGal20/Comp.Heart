@@ -18,12 +18,14 @@ const theme = createTheme({
     borderRadius: 18,
   },
   typography: {
-    fontFamily: `"Segoe UI", "Inter", sans-serif`,
+    fontFamily: `"Segoe UI Variable", "Segoe UI", "Inter", sans-serif`,
     h3: { fontWeight: 700 },
-    h4: { fontWeight: 700 },
+    h4: { fontWeight: 700, letterSpacing: -0.4 },
     h5: { fontWeight: 700 },
     h6: { fontWeight: 700 },
     subtitle1: { letterSpacing: 0.2 },
+    body1: { lineHeight: 1.72 },
+    body2: { lineHeight: 1.62 },
   },
   components: {
     MuiPaper: {
@@ -41,6 +43,20 @@ const theme = createTheme({
           background: "linear-gradient(180deg, rgba(13,20,35,0.96), rgba(10,15,25,0.9))",
           boxShadow: "0 20px 60px rgba(0, 0, 0, 0.28)",
         },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 14,
+          textTransform: "none",
+          paddingInline: 16,
+        },
+      },
+    },
+    MuiTextField: {
+      defaultProps: {
+        variant: "outlined",
       },
     },
     MuiChip: {

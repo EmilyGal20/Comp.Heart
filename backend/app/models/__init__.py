@@ -1,5 +1,6 @@
 from app.models.ai import AIConversation, AIMessage
 from app.models.automation import AutomationRule
+from app.models.collaboration import ChatChannel, ChatMembership, ChatMessage, OrganizationIntegration, OrganizationSetting, SentEmail, UserWorkspaceSetting
 from app.models.knowledge import KnowledgeItem, KnowledgeTag
 from app.models.notification import Notification
 from app.models.organization import Organization
@@ -11,10 +12,16 @@ __all__ = [
     "AIConversation",
     "AIMessage",
     "AutomationRule",
+    "ChatChannel",
+    "ChatMembership",
+    "ChatMessage",
     "KnowledgeItem",
     "KnowledgeTag",
     "Notification",
     "Organization",
+    "OrganizationIntegration",
+    "OrganizationSetting",
+    "SentEmail",
     "Task",
     "TaskActivity",
     "TaskAttachment",
@@ -28,4 +35,5 @@ __all__ = [
     "AuditLog",
     "Team",
     "User",
+    "UserWorkspaceSetting",
 ]

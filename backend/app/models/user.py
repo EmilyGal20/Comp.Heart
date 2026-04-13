@@ -15,6 +15,7 @@ class Team(Base):
 
     organization = relationship("Organization", back_populates="teams")
     users = relationship("User", back_populates="team")
+    chat_channels = relationship("ChatChannel", back_populates="team")
 
 
 class User(Base):
@@ -40,3 +41,7 @@ class User(Base):
     watched_tasks = relationship("TaskWatcher", back_populates="user")
     notifications = relationship("Notification", back_populates="user")
     conversations = relationship("AIConversation", back_populates="user")
+    chat_memberships = relationship("ChatMembership", back_populates="user")
+    chat_messages = relationship("ChatMessage", back_populates="user")
+    sent_emails = relationship("SentEmail", back_populates="sender")
+    workspace_setting = relationship("UserWorkspaceSetting", back_populates="user", uselist=False, cascade="all, delete-orphan")

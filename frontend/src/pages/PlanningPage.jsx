@@ -1,19 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Grid,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
-import { workApi } from "../api/endpoints";
+import { AutoAwesome, PlayArrow } from "@mui/icons-material";
+import { Alert, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, LinearProgress, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { aiApi, tasksApi, workApi } from "../api/endpoints";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
 import StatusPill from "../components/StatusPill";
@@ -30,31 +18,32 @@ function PlanningPage() {
   const [backlog, setBacklog] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [recurring, setRecurring] = useState([]);
-  const [approvals, setApprovals] = useState([]);
   const [selectedSprintId, setSelectedSprintId] = useState("");
+  const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [sprintOpen, setSprintOpen] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [sprintForm, setSprintForm] = useState(sprintFormDefault);
   const [templateForm, setTemplateForm] = useState(templateFormDefault);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [selectedSuggestions, setSelectedSuggestions] = useState([]);
   const [error, setError] = useState("");
-
   const orgId = activeOrganizationId || user.organization_id;
 
   const load = async () => {
     try {
-      setError("");
-      const [sprintsResponse, backlogResponse, templatesResponse, recurringResponse, reportResponse] = await Promise.all([
+      const [sprintsResponse, backlogResponse, templatesResponse, recurringResponse] = await Promise.all([
         workApi.sprints({ organization_id: orgId }),
         workApi.backlog({ organization_id: orgId }),
         workApi.templates({ organization_id: orgId }),
         workApi.recurring({ organization_id: orgId }),
-        workApi.reports({ organization_id: orgId }),
       ]);
       setSprints(sprintsResponse.data);
       setBacklog(backlogResponse.data);
       setTemplates(templatesResponse.data);
       setRecurring(recurringResponse.data);
-      setApprovals(reportResponse.data.overdue_tasks || []);
+      setError("");
     } catch (requestError) {
       setError(requestError.response?.data?.detail || "Unable to load planning workspace");
     }
@@ -62,9 +51,12 @@ function PlanningPage() {
 
   useEffect(() => {
     load();
-  }, [orgId, versions.activity, versions.tasks]);
+  }, [orgId, versions.tasks, versions.activity, versions.analytics]);
 
-  const activeSprint = useMemo(() => sprints.find((item) => item.id === Number(selectedSprintId)) || sprints.find((item) => item.status === "ACTIVE") || null, [selectedSprintId, sprints]);
+  const activeSprint = useMemo(
+    () => sprints.find((item) => item.id === Number(selectedSprintId)) || sprints.find((item) => item.status === "ACTIVE") || sprints[0] || null,
+    [selectedSprintId, sprints]
+  );
 
   const createSprint = async () => {
     await workApi.createSprint({ ...sprintForm, organization_id: orgId, start_date: sprintForm.start_date || null, end_date: sprintForm.end_date || null });
@@ -85,85 +77,153 @@ function PlanningPage() {
     await load();
   };
 
+  const reorderBacklog = async (taskId, beforeTaskId = null) => {
+    const next = [...backlog];
+    const dragged = next.find((task) => task.id === taskId);
+    if (!dragged) return;
+    const filtered = next.filter((task) => task.id !== taskId);
+    const targetIndex = beforeTaskId ? filtered.findIndex((task) => task.id === beforeTaskId) : filtered.length;
+    filtered.splice(targetIndex < 0 ? filtered.length : targetIndex, 0, dragged);
+    await workApi.reorderBacklog(filtered.map((task) => task.id), { organization_id: orgId });
+    await load();
+  };
+
+  const generateAiPlan = async () => {
+    const response = await aiApi.suggestTaskPlan({ prompt: aiPrompt, task_count: 4, organization_id: orgId, sprint_id: activeSprint?.id || null });
+    setAiSuggestions(response.data.suggestions);
+    setSelectedSuggestions(response.data.suggestions.map((_, index) => index));
+  };
+
+  const createAiTasks = async () => {
+    const chosen = aiSuggestions.filter((_, index) => selectedSuggestions.includes(index));
+    await Promise.all(
+      chosen.map((item) =>
+        tasksApi.create({
+          organization_id: orgId,
+          title: item.title,
+          description: item.description,
+          status: "TODO",
+          priority: item.priority,
+          assignee_id: item.suggested_assignee_id,
+          due_at: new Date(Date.now() + item.due_in_days * 86400000).toISOString(),
+          sla_hours: item.sla_hours,
+          tags: item.tags,
+          related_knowledge_ids: item.related_knowledge_ids,
+          sprint_id: activeSprint?.id || null,
+        })
+      )
+    );
+    setAiOpen(false);
+    setAiPrompt("");
+    setAiSuggestions([]);
+    setSelectedSuggestions([]);
+    await load();
+  };
+
+  const taskCard = (task, sprintId = null) => (
+    <Box
+      key={task.id}
+      draggable
+      onDragStart={() => setDraggedTaskId(task.id)}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={async (event) => {
+        event.preventDefault();
+        if (sprintId === null && draggedTaskId) {
+          await reorderBacklog(draggedTaskId, task.id);
+        }
+      }}
+      sx={{ p: 1.7, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.035)", border: "1px solid rgba(148,163,184,0.08)", cursor: "grab" }}
+    >
+      <Typography variant="subtitle2">{task.title}</Typography>
+      <Typography variant="body2" sx={{ mt: 0.8, color: "rgba(226,232,240,0.62)" }}>{task.assignee?.full_name || "Unassigned"}</Typography>
+      <Stack direction="row" spacing={1} sx={{ mt: 1.2 }} flexWrap="wrap" useFlexGap>
+        <StatusPill value={task.priority} />
+        <StatusPill value={task.status} />
+      </Stack>
+      {sprintId ? <Button sx={{ mt: 1.25 }} size="small" onClick={() => moveTask(task.id, null)}>Move to backlog</Button> : activeSprint ? <Button sx={{ mt: 1.25 }} size="small" onClick={() => moveTask(task.id, activeSprint.id)}>Add to sprint</Button> : null}
+    </Box>
+  );
+
   return (
     <>
       <PageHeader
         eyebrow="Planning"
-        title="Backlog, sprints, and reusable work patterns"
-        description="Shape upcoming work with a cleaner backlog, active sprint boards, task templates, recurring task schedules, and approval visibility."
+        title="Backlog, sprint shaping, and reusable work patterns"
+        description="Plan work with drag-and-drop backlog movement, sprint focus, reusable templates, AI-generated work breakdowns, and scheduled recurring execution."
         actions={[
+          <Button key="ai" startIcon={<AutoAwesome />} variant="outlined" onClick={() => setAiOpen(true)}>Generate with AI</Button>,
           <Button key="sprint" variant="contained" onClick={() => setSprintOpen(true)}>New sprint</Button>,
           <Button key="template" variant="outlined" onClick={() => setTemplateOpen(true)}>New template</Button>,
         ]}
       />
-      {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-      <Grid container spacing={2.5}>
-        <Grid item xs={12} lg={4}>
-          <GlassPanel title="Sprints" subtitle="Active and upcoming iterations">
-            <Stack spacing={1.3}>
+      {error ? <Alert severity="error" sx={{ mb: 2.5 }}>{error}</Alert> : null}
+      <Grid container spacing={3}>
+        <Grid item xs={12} xl={3.5}>
+          <GlassPanel title="Sprint lanes" subtitle="Active and upcoming cycles with progress at a glance">
+            <Stack spacing={1.4}>
               {sprints.map((sprint) => (
-                <Stack key={sprint.id} sx={{ p: 1.6, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }} spacing={1}>
+                <Box key={sprint.id} sx={{ p: 1.75, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.03)" }}>
                   <Stack direction="row" justifyContent="space-between" spacing={1}>
                     <Typography variant="subtitle2">{sprint.name}</Typography>
                     <StatusPill value={sprint.status} />
                   </Stack>
-                  <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.65)" }}>{sprint.goal}</Typography>
-                  <Chip size="small" label={`${sprint.progress.done}/${sprint.progress.total} done`} />
-                  <Stack direction="row" spacing={1}>
+                  <Typography variant="body2" sx={{ mt: 1, color: "rgba(226,232,240,0.64)" }}>{sprint.goal}</Typography>
+                  <LinearProgress variant="determinate" value={sprint.progress.total ? (sprint.progress.done / sprint.progress.total) * 100 : 0} sx={{ mt: 1.5, height: 8, borderRadius: 999 }} />
+                  <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
                     <Button size="small" onClick={() => setSelectedSprintId(sprint.id)}>Focus</Button>
                     {sprint.status !== "ACTIVE" ? <Button size="small" onClick={() => workApi.updateSprintStatus(sprint.id, { status: "ACTIVE" }).then(load)}>Start</Button> : null}
                     {sprint.status !== "COMPLETED" ? <Button size="small" onClick={() => workApi.updateSprintStatus(sprint.id, { status: "COMPLETED" }).then(load)}>Complete</Button> : null}
                   </Stack>
-                </Stack>
+                </Box>
               ))}
             </Stack>
           </GlassPanel>
         </Grid>
-        <Grid item xs={12} lg={8}>
-          <GlassPanel title={activeSprint ? `${activeSprint.name} board` : "Backlog board"} subtitle="Move work between backlog and the focused sprint">
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" sx={{ mb: 1.2 }}>Backlog</Typography>
-                <Stack spacing={1.2}>
-                  {backlog.map((task) => (
-                    <Stack key={task.id} sx={{ p: 1.5, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }} spacing={1}>
-                      <Typography variant="subtitle2">{task.title}</Typography>
-                      <Stack direction="row" spacing={1}>
-                        <StatusPill value={task.priority} />
-                        <StatusPill value={task.status} />
-                      </Stack>
-                      {activeSprint ? <Button size="small" onClick={() => moveTask(task.id, activeSprint.id)}>Add to sprint</Button> : null}
-                    </Stack>
-                  ))}
-                </Stack>
+        <Grid item xs={12} xl={8.5}>
+          <GlassPanel title={activeSprint ? `${activeSprint.name} planning board` : "Backlog board"} subtitle="Drag work into the sprint, reorder the backlog, and keep iteration focus visible.">
+            <Grid container spacing={2.5}>
+              <Grid item xs={12} md={5.5}>
+                <Box
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={async (event) => {
+                    event.preventDefault();
+                    if (draggedTaskId) await moveTask(draggedTaskId, null);
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ mb: 1.4 }}>Backlog</Typography>
+                  <Stack spacing={1.25}>
+                    {backlog.map((task) => taskCard(task, null))}
+                    {!backlog.length ? <Box sx={{ p: 3, borderRadius: 4, bgcolor: "rgba(255,255,255,0.025)" }}><Typography variant="body2">Backlog is clear right now.</Typography></Box> : null}
+                  </Stack>
+                </Box>
               </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" sx={{ mb: 1.2 }}>Sprint tasks</Typography>
-                <Stack spacing={1.2}>
-                  {(activeSprint?.tasks || []).map((task) => (
-                    <Stack key={task.id} sx={{ p: 1.5, borderRadius: 3, bgcolor: "rgba(116,184,255,0.08)" }} spacing={1}>
-                      <Typography variant="subtitle2">{task.title}</Typography>
-                      <Stack direction="row" spacing={1}>
-                        <StatusPill value={task.priority} />
-                        <StatusPill value={task.status} />
-                      </Stack>
-                      <Button size="small" onClick={() => moveTask(task.id, null)}>Move to backlog</Button>
-                    </Stack>
-                  ))}
-                </Stack>
+              <Grid item xs={12} md={6.5}>
+                <Box
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={async (event) => {
+                    event.preventDefault();
+                    if (draggedTaskId && activeSprint) await moveTask(draggedTaskId, activeSprint.id);
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ mb: 1.4 }}>Sprint focus</Typography>
+                  <Stack spacing={1.25}>
+                    {(activeSprint?.tasks || []).map((task) => taskCard(task, activeSprint?.id))}
+                    {!activeSprint?.tasks?.length ? <Box sx={{ p: 3, borderRadius: 4, bgcolor: "rgba(116,184,255,0.06)" }}><Typography variant="body2">Drop backlog tasks here to shape the sprint.</Typography></Box> : null}
+                  </Stack>
+                </Box>
               </Grid>
             </Grid>
           </GlassPanel>
         </Grid>
         <Grid item xs={12} md={6}>
-          <GlassPanel title="Task templates" subtitle="Repeatable work patterns">
+          <GlassPanel title="Task templates" subtitle="Reusable operating patterns for common work streams">
             <Stack spacing={1.2}>
               {templates.map((template) => (
-                <Stack key={template.id} direction="row" justifyContent="space-between" sx={{ p: 1.4, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
-                  <div>
+                <Stack key={template.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 1.5, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+                  <Box>
                     <Typography variant="subtitle2">{template.name}</Typography>
-                    <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.65)" }}>{template.title_template}</Typography>
-                  </div>
+                    <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.64)" }}>{template.title_template}</Typography>
+                  </Box>
                   <Button size="small" onClick={() => workApi.createTaskFromTemplate(template.id).then(load)}>Use</Button>
                 </Stack>
               ))}
@@ -171,19 +231,23 @@ function PlanningPage() {
           </GlassPanel>
         </Grid>
         <Grid item xs={12} md={6}>
-          <GlassPanel title="Recurring tasks" subtitle="Automated future task creation">
+          <GlassPanel title="Recurring tasks" subtitle="Scheduled generation with safe manual trigger visibility">
             <Stack spacing={1.2}>
               {recurring.map((item) => (
-                <Stack key={item.id} sx={{ p: 1.4, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
+                <Box key={item.id} sx={{ p: 1.5, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.03)" }}>
                   <Typography variant="subtitle2">{item.template?.name || "Recurring task"}</Typography>
-                  <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.65)" }}>{item.frequency} • next {new Date(item.next_run_at).toLocaleString()}</Typography>
-                </Stack>
+                  <Typography variant="body2" sx={{ mt: 0.6, color: "rgba(226,232,240,0.64)" }}>
+                    {item.frequency} · next {new Date(item.next_run_at).toLocaleString()}
+                  </Typography>
+                </Box>
               ))}
-              <Button variant="outlined" onClick={() => workApi.runRecurring().then(load)}>Run due recurring tasks</Button>
+              <Divider sx={{ borderColor: "rgba(148,163,184,0.08)" }} />
+              <Button startIcon={<PlayArrow />} variant="outlined" onClick={() => workApi.runRecurring().then(load)}>Run due recurring tasks now</Button>
             </Stack>
           </GlassPanel>
         </Grid>
       </Grid>
+
       <Dialog open={sprintOpen} onClose={() => setSprintOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Create sprint</DialogTitle>
         <DialogContent>
@@ -199,6 +263,7 @@ function PlanningPage() {
           <Button variant="contained" onClick={createSprint}>Create</Button>
         </DialogActions>
       </Dialog>
+
       <Dialog open={templateOpen} onClose={() => setTemplateOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Create template</DialogTitle>
         <DialogContent>
@@ -210,12 +275,49 @@ function PlanningPage() {
               {["low", "medium", "high", "critical"].map((priority) => <MenuItem key={priority} value={priority}>{priority}</MenuItem>)}
             </TextField>
             <TextField label="Default tags" value={templateForm.default_tags} onChange={(event) => setTemplateForm((previous) => ({ ...previous, default_tags: event.target.value }))} />
-            <TextField type="number" label="Default SLA" value={templateForm.default_sla} onChange={(event) => setTemplateForm((previous) => ({ ...previous, default_sla: event.target.value }))} />
+            <TextField type="number" label="Default SLA" value={templateForm.default_sla} onChange={(event) => setTemplateForm((previous) => ({ ...previous, default_sla: Number(event.target.value) }))} />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setTemplateOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={createTemplate}>Create</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={aiOpen} onClose={() => setAiOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>Generate sprint-ready tasks with AI</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1.2 }}>
+            <TextField
+              label="Prompt"
+              multiline
+              minRows={3}
+              placeholder="Prepare onboarding flow for new support employee"
+              value={aiPrompt}
+              onChange={(event) => setAiPrompt(event.target.value)}
+            />
+            <Button variant="outlined" startIcon={<AutoAwesome />} onClick={generateAiPlan}>Generate suggestions</Button>
+            <Stack spacing={1.2}>
+              {aiSuggestions.map((item, index) => (
+                <Stack key={`${item.title}-${index}`} direction="row" spacing={1.5} alignItems="flex-start" sx={{ p: 1.5, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+                  <Checkbox checked={selectedSuggestions.includes(index)} onChange={() => setSelectedSuggestions((previous) => previous.includes(index) ? previous.filter((value) => value !== index) : [...previous, index])} />
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="subtitle2">{item.title}</Typography>
+                    <Typography variant="body2" sx={{ mt: 0.7, color: "rgba(226,232,240,0.64)", whiteSpace: "pre-wrap" }}>{item.description}</Typography>
+                    <Stack direction="row" spacing={1} sx={{ mt: 1 }} flexWrap="wrap" useFlexGap>
+                      <Chip size="small" label={item.priority} />
+                      <Chip size="small" label={`Due in ${item.due_in_days}d`} />
+                      <Chip size="small" label={item.risk_level} color={item.risk_level === "high" ? "warning" : "default"} />
+                    </Stack>
+                  </Box>
+                </Stack>
+              ))}
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAiOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={createAiTasks} disabled={!selectedSuggestions.length}>Create selected tasks</Button>
         </DialogActions>
       </Dialog>
     </>

@@ -10,6 +10,7 @@ body {
     radial-gradient(circle at top right, rgba(155, 124, 255, 0.14), transparent 34%),
     linear-gradient(180deg, #070b14 0%, #05070f 100%);
   color: #eef3ff;
+  line-height: 1.55;
 }
 
 #root {
@@ -22,6 +23,16 @@ body {
 
 .hero-grid {
   position: relative;
+}
+
+.content-cluster {
+  display: grid;
+  gap: 24px;
+}
+
+.soft-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(116, 184, 255, 0.35) transparent;
 }
 
 .hero-grid::before {

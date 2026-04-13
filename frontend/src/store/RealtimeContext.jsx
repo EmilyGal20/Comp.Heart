@@ -7,6 +7,8 @@ const RealtimeContext = createContext(null);
 function shouldBump(kind, eventType) {
   if (kind === "notifications") return eventType.startsWith("notification") || eventType === "task_mentioned";
   if (kind === "tasks") return eventType.startsWith("task_");
+  if (kind === "chat") return eventType.startsWith("chat_") || eventType === "task_message_created";
+  if (kind === "analytics") return eventType.includes("approval") || eventType.includes("recurring") || eventType.includes("task_");
   if (kind === "activity") return eventType.startsWith("task_") || eventType === "organization_updated" || eventType === "user_updated";
   if (kind === "organizations") return eventType.startsWith("organization_");
   if (kind === "users") return eventType === "user_updated";
@@ -22,6 +24,8 @@ export function RealtimeProvider({ children }) {
   const [versions, setVersions] = useState({
     notifications: 0,
     tasks: 0,
+    chat: 0,
+    analytics: 0,
     activity: 0,
     organizations: 0,
     users: 0,

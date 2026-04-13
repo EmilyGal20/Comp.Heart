@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Apartment,
   AutoAwesome,
+  Forum,
   GppGood,
   Hub,
   Insights,
@@ -59,6 +60,7 @@ const navItems = [
   { label: "Organizations", path: "/organizations", icon: <Apartment />, roles: ["SUPER_ADMIN"] },
   { label: "My Work", path: "/my-work", icon: <WorkOutline />, roles: ["USER"] },
   { label: "Planning", path: "/planning", icon: <Timeline />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
+  { label: "Chat", path: "/chat", icon: <Forum />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Knowledge", path: "/knowledge", icon: <MenuBook />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Tasks", path: "/tasks", icon: <TaskAlt />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Automation", path: "/automation", icon: <Hub />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
@@ -302,12 +304,14 @@ function AppShell({ children }) {
         className="hero-grid"
         sx={{
           flexGrow: 1,
-          p: { xs: 2, md: 4 },
-          pt: { xs: 14, md: 15 },
+          p: { xs: 2.5, md: 4.5 },
+          pt: { xs: 14, md: 15.5 },
           width: { md: `calc(100% - ${drawerWidth}px)` },
         }}
       >
-        {children}
+        <Box sx={{ width: "100%", maxWidth: 1480, mx: "auto" }}>
+          {children}
+        </Box>
       </Box>
       <Dialog open={paletteOpen} onClose={() => setPaletteOpen(false)} fullWidth maxWidth="sm">
         <DialogContent sx={{ p: 2.5 }}>

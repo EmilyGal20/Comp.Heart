@@ -73,6 +73,7 @@ class TaskCreate(BaseModel):
     sla_hours: int = 24
     related_knowledge_id: Optional[int] = None
     related_knowledge_ids: List[int] = []
+    external_refs: List[str] = []
     parent_task_id: Optional[int] = None
     sprint_id: Optional[int] = None
 
@@ -88,6 +89,7 @@ class TaskUpdate(BaseModel):
     sla_hours: int
     related_knowledge_id: Optional[int] = None
     related_knowledge_ids: List[int] = []
+    external_refs: List[str] = []
     parent_task_id: Optional[int] = None
     sprint_id: Optional[int] = None
 
@@ -128,6 +130,7 @@ class TaskRead(BaseModel):
     related_knowledge: Optional[KnowledgeRead] = None
     related_knowledge_ids: List[int] = []
     related_knowledge_items: List[KnowledgeRead] = []
+    external_refs: List[str] = []
     comments: List[TaskCommentRead] = []
     activities: List[TaskActivityRead] = []
     attachments: List[TaskAttachmentRead] = []

@@ -17,6 +17,11 @@ CompHeart is a premium internal company operating system for multi-organization 
 - Realtime websocket layer for live task changes, comments, mentions, notifications, org updates, and user updates.
 - Collaborative task workspace with comments, activity timeline, attachments, watchers, subtasks, board/list views, and AI task helpers.
 - Advanced work management layers with sprint planning, backlog management, task templates, recurring generation, approvals, global search, a command palette, task chat, reports, exports, audit logs, calendar and timeline views, and a permissions matrix.
+- AI-generated task planning with structured suggestions, subtask generation, and one-click creation.
+- Slack-style internal chat with organization channels, team channels, task-linked threads, and live mentions.
+- Integration-ready GitHub, Slack, and Email architecture with real settings surfaces.
+- Predictive SLA analytics for at-risk tasks, overloaded users, and team risk visibility.
+- More breathable layout polish with wider gutters, calmer spacing, and more centered content zones.
 
 ## Phase Upgrade Summary
 
@@ -56,6 +61,14 @@ CompHeart is a premium internal company operating system for multi-organization 
 
 - Visual permissions matrix page.
 - Clear role-aware visibility across planning, reports, and management surfaces.
+
+### Phase 8: AI, Communication, and Operational Intelligence
+
+- AI-generated tasks from goals, prompts, and planning requests.
+- Internal chat workspace with organization and team channels.
+- Internal email sending with org-scoped recipient selection.
+- Settings workspace for profile, integrations, workspace defaults, and operational controls.
+- Predictive analytics for SLA risk and workload overload.
 
 ## Stack
 
@@ -132,6 +145,10 @@ compheart/
 - `dashboard`: role-aware dashboard summary endpoint
 - `websocket`: organization-aware live updates for tasks, notifications, org changes, and user changes
 - `work_management`: sprints, backlog, templates, recurring tasks, approvals, task chat, search, reports, exports, audit logs, and permission matrix
+- `chat`: org channels, team channels, and task-linked collaboration threads
+- `integrations`: GitHub, Slack, and Email settings plus internal email workflows
+- `settings`: profile, workspace, and organization operations defaults
+- `analytics`: explainable task, user, and team SLA risk scoring
 
 ## Database Models
 
@@ -151,6 +168,13 @@ compheart/
 - `TaskApproval`
 - `TaskMessage`
 - `AuditLog`
+- `ChatChannel`
+- `ChatMembership`
+- `ChatMessage`
+- `OrganizationIntegration`
+- `SentEmail`
+- `UserWorkspaceSetting`
+- `OrganizationSetting`
 - `AutomationRule`
 - `Notification`
 - `AIConversation`
@@ -199,6 +223,9 @@ npm run install-all
 ```env
 OPENAI_API_KEY=your_key_here
 OPENAI_MODEL=gpt-4.1-mini
+SMTP_HOST=localhost
+SMTP_PORT=1025
+SMTP_SENDER=ops@compheart.local
 ```
 
 ## Running The Stack
@@ -239,6 +266,9 @@ The upgraded seed bootstraps a realistic multi-org environment:
 - org-distributed tasks with SLA variation
 - comments, activity history, watchers, subtasks, and attachment-ready task records
 - sprint, backlog, approval, recurring, and task-chat examples
+- org and team chat channels with seeded message history
+- GitHub, Slack, and Email integration settings shells
+- workspace defaults, predictive analytics inputs, and sent email history
 - org-specific automation rules
 - personal, org-wide, and role-targeted notifications
 - audit log history
@@ -342,6 +372,41 @@ Work Management:
 - `GET /api/work/audit-logs`
 - `GET /api/work/permissions/matrix`
 
+Chat:
+
+- `GET /api/chat/channels`
+- `POST /api/chat/channels`
+- `GET /api/chat/channels/{id}/messages`
+- `POST /api/chat/channels/{id}/messages`
+- `GET /api/chat/task/{task_id}/thread`
+
+Integrations:
+
+- `GET /api/integrations`
+- `GET /api/integrations/github`
+- `PUT /api/integrations/github`
+- `GET /api/integrations/slack`
+- `PUT /api/integrations/slack`
+- `GET /api/integrations/email`
+- `PUT /api/integrations/email`
+- `POST /api/integrations/email/send`
+- `GET /api/integrations/email/history`
+
+Analytics:
+
+- `GET /api/analytics/sla-risk`
+- `GET /api/analytics/user-risk`
+- `GET /api/analytics/team-risk`
+
+Settings:
+
+- `GET /api/settings/profile`
+- `PUT /api/settings/profile`
+- `GET /api/settings/workspace`
+- `PUT /api/settings/workspace`
+- `GET /api/settings/organization`
+- `PUT /api/settings/organization`
+
 Automation:
 
 - `GET /api/automation`
@@ -362,6 +427,9 @@ Realtime:
 AI:
 
 - `POST /api/ai/chat`
+- `POST /api/ai/generate-tasks`
+- `POST /api/ai/generate-subtasks`
+- `POST /api/ai/suggest-task-plan`
 - `GET /api/ai/conversations`
 - `GET /api/ai/conversations/{id}`
 
@@ -381,11 +449,14 @@ The frontend now includes:
 - improved admin and manager workflows
 - personalized user dashboard and My Work area
 - planning workspace with sprint and backlog controls
+- drag-and-drop backlog and sprint movement
+- dedicated chat workspace for channels and fast collaboration
 - report center with export actions and audit visibility
 - permission matrix page
 - activity feed page
 - org-aware knowledge, tasks, notifications, and AI flows
 - rich task detail drawer with comments, chat, timeline, attachments, editing, watchers, subtasks, approvals, and AI actions
+- real settings workspace with profile, integrations, workspace defaults, and org controls
 
 ## Task Collaboration Upgrade
 
@@ -394,6 +465,7 @@ The task system now supports:
 - full task editing for allowed roles
 - comments with author and timestamp
 - realtime task chat for fast collaboration
+- AI-generated tasks and structured planning suggestions
 - automatic task activity timeline
 - attachments stored locally with download links
 - task watchers and followers
@@ -404,6 +476,7 @@ The task system now supports:
 - advanced filtering by search, status, priority, assignee, team, SLA state, and organization scope
 - AI task helper actions for summary, next steps, and subtasks
 - sprint assignment, backlog placement, template-based creation, approvals, and recurring generation
+- task-linked email updates with organization-scoped recipient selection
 
 ### Task Permissions
 
@@ -431,8 +504,10 @@ CompHeart now includes a websocket live-update channel:
 
 - task creation, edits, status changes, comments, and watch state update live
 - task chat messages update live
+- channel chat messages update live
 - sprint and backlog changes can update live
 - recurring task generation and approval decisions can publish live updates
+- email send notifications can publish live updates
 - notification badges and mention alerts update live
 - organization and user management changes can propagate to connected clients
 - super admins can stay global or scoped to one organization in realtime
@@ -450,6 +525,8 @@ CompHeart now includes a websocket live-update channel:
 - `recurring_task_created`
 - `backlog_updated`
 - `sprint_updated`
+- `chat_message_created`
+- `email_sent`
 - `notification_created`
 - `organization_updated`
 - `user_updated`
@@ -466,6 +543,13 @@ This upgrade changes the SQLite schema again to support planning and governance 
 - `audit_logs`
 - task-level `sprint_id`
 - task-level `backlog_order`
+- `chat_channels`
+- `chat_memberships`
+- `chat_messages`
+- `organization_integrations`
+- `sent_emails`
+- `user_workspace_settings`
+- `organization_settings`
 
 On startup, CompHeart detects older incompatible SQLite schemas and rebuilds the local database automatically so the latest seed can initialize cleanly.
 
@@ -481,6 +565,8 @@ The upgraded backend now enforces:
 - user-scoped task and notification access
 - task edit/comment/attachment permissions by role and ownership
 - organization-aware planning, approvals, reporting, search, and chat access
+- organization-aware integration management and recipient-scoped email sending
+- explainable predictive analytics based on due dates, blockers, priority, open subtasks, and workload
 
 ## Seed Coverage
 
@@ -492,6 +578,7 @@ The current seed now includes:
 - recurring task definitions
 - pending and completed approvals
 - task chat messages
+- seeded chat channels, integration settings, and sent email history
 - audit log records
 - watchers, subtasks, comments, and notifications that still respect org boundaries
 
