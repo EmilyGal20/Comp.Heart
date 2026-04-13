@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # COMPHEART
 
 CompHeart is a premium internal company operating system for multi-organization environments. It centralizes knowledge, tasks, workflows, AI assistance, notifications, people management, and executive visibility inside one role-aware platform.
@@ -301,3 +302,6 @@ The upgraded backend now enforces:
 - vector search and stronger retrieval for CompHeart AI
 - websocket notifications and live dashboard updates
 - background automation execution and schedules
+=======
+# Comp.Heart
+>>>>>>> cf22104d9a087c8f9b7fc0f88d03dfa340ad9540
