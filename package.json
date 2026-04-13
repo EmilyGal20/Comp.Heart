@@ -1,0 +1,15 @@
+{
+  "name": "compheart",
+  "private": true,
+  "version": "1.0.0",
+  "description": "CompHeart monorepo - premium internal company operating system.",
+  "scripts": {
+    "install-all": "python -m pip install -r backend/requirements.txt && npm install && npm --prefix frontend install",
+    "frontend": "npm --prefix frontend run dev",
+    "backend": "cd backend && python run.py",
+    "dev": "concurrently -k -n FRONTEND,BACKEND -c cyan,magenta \"npm run frontend\" \"npm run backend\""
+  },
+  "dependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
