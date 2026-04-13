@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -7,10 +8,11 @@ from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session, aliased, joinedload
 
 from app.core.config import get_settings
+from app.core.realtime import publish_event
 from app.core.permissions import ROLE_MANAGER, ROLE_SUPER_ADMIN, ROLE_USER
 from app.models.knowledge import KnowledgeItem
 from app.models.notification import Notification
-from app.models.task import Task, TaskActivity, TaskAttachment, TaskComment
+from app.models.task import Task, TaskActivity, TaskAttachment, TaskComment, TaskWatcher
 from app.models.user import User
 from app.native.risk_score import task_risk_score
 from app.services.notification_service import create_notification
@@ -33,6 +35,7 @@ VALID_STATUS_TRANSITIONS = {
     "REVIEW": {"IN_PROGRESS", "DONE", "BLOCKED"},
     "DONE": {"REVIEW"},
 }
+MENTION_PATTERN = re.compile(r"@([A-Za-z0-9._-]+)")
 
 
 def normalize_status(value: str) -> str:
@@ -92,6 +95,8 @@ def _sort_task_collections(task: Task):
     task.comments = sorted(task.comments, key=lambda item: item.created_at, reverse=True)
     task.activities = sorted(task.activities, key=lambda item: item.created_at, reverse=True)
     task.attachments = sorted(task.attachments, key=lambda item: item.created_at, reverse=True)
+    task.watchers = sorted(task.watchers, key=lambda item: item.created_at, reverse=True)
+    task.subtasks = sorted(task.subtasks, key=lambda item: item.created_at, reverse=True)
     return task
 
 
@@ -110,8 +115,12 @@ def _attach_related_knowledge_items(task: Task, db: Session):
 
 
 def enrich_task(task: Task, db: Session) -> Task:
+    if not task:
+        return task
     task.sla_status = compute_sla_status(task)
     task.risk_score = compute_task_risk(task, db)
+    subtask_statuses = [subtask.status for subtask in task.subtasks]
+    task.subtask_progress = {"total": len(subtask_statuses), "done": len([status for status in subtask_statuses if status == "DONE"]), "open": len([status for status in subtask_statuses if status != "DONE"])}
     _attach_related_knowledge_items(task, db)
     return _sort_task_collections(task)
 
@@ -125,6 +134,8 @@ def task_query(db: Session):
         joinedload(Task.comments).joinedload(TaskComment.author).joinedload(User.team),
         joinedload(Task.activities).joinedload(TaskActivity.user).joinedload(User.team),
         joinedload(Task.attachments).joinedload(TaskAttachment.uploader).joinedload(User.team),
+        joinedload(Task.watchers).joinedload(TaskWatcher.user).joinedload(User.team),
+        joinedload(Task.subtasks).joinedload(Task.assignee).joinedload(User.team),
     )
 
 
@@ -150,12 +161,16 @@ def can_edit_task(current_user: User, task: Task) -> bool:
     if current_user.role == ROLE_MANAGER:
         return task.assignee is None or task.creator_id == current_user.id or (task.assignee and task.assignee.team_id == current_user.team_id)
     if current_user.role == ROLE_USER:
-        return task.assignee_id == current_user.id
+        return task.assignee_id == current_user.id or task.creator_id == current_user.id
     return False
 
 
 def can_reassign_task(current_user: User, task: Task) -> bool:
     return current_user.role in {ROLE_SUPER_ADMIN, "ADMIN", ROLE_MANAGER} and can_edit_task(current_user, task)
+
+
+def can_create_task(current_user: User) -> bool:
+    return current_user.role in {ROLE_SUPER_ADMIN, "ADMIN", ROLE_MANAGER, ROLE_USER}
 
 
 def log_task_activity(
@@ -196,7 +211,7 @@ def notify_task_event(
     role_target: str | None = None,
     is_org_wide: bool = False,
 ):
-    create_notification(
+    return create_notification(
         db,
         title=title,
         message=f"{task.title}: {message} by {actor.full_name}.",
@@ -207,6 +222,71 @@ def notify_task_event(
         role_target=role_target,
         is_org_wide=is_org_wide,
     )
+
+
+def serialize_user(user: User | None):
+    if not user:
+        return None
+    return {"id": user.id, "full_name": user.full_name, "role": user.role, "team": user.team.name if user.team else None}
+
+
+def serialize_task_snapshot(task: Task):
+    return {
+        "id": task.id,
+        "title": task.title,
+        "status": task.status,
+        "priority": task.priority,
+        "assignee": serialize_user(task.assignee),
+        "creator": serialize_user(task.creator),
+        "due_at": task.due_at.isoformat() if task.due_at else None,
+        "sla_status": task.sla_status,
+        "risk_score": getattr(task, "risk_score", 0),
+        "parent_task_id": task.parent_task_id,
+        "tags": list(task.tags),
+        "subtask_progress": getattr(task, "subtask_progress", {"total": 0, "done": 0, "open": 0}),
+    }
+
+
+def serialize_comment_snapshot(comment: TaskComment):
+    return {"id": comment.id, "task_id": comment.task_id, "content": comment.content, "created_at": comment.created_at.isoformat() if comment.created_at else None, "author": serialize_user(comment.author)}
+
+
+def serialize_attachment_snapshot(attachment: TaskAttachment):
+    return {"id": attachment.id, "task_id": attachment.task_id, "file_name": attachment.file_name, "file_path": attachment.file_path, "created_at": attachment.created_at.isoformat() if attachment.created_at else None, "uploader": serialize_user(attachment.uploader)}
+
+
+def _publish_task_event(event_type: str, task: Task, data: dict | None = None, *, user_id: int | None = None):
+    publish_event(event_type, {"task": serialize_task_snapshot(task), **(data or {})}, organization_id=task.organization_id, user_id=user_id)
+
+
+def _watcher_user_ids(task: Task):
+    return [watcher.user_id for watcher in task.watchers if watcher.user_id]
+
+
+def _notify_task_watchers(db: Session, *, task: Task, actor: User, title: str, message: str, exclude_user_ids: set[int] | None = None):
+    exclude_user_ids = exclude_user_ids or set()
+    for watcher_user_id in _watcher_user_ids(task):
+        if watcher_user_id in exclude_user_ids:
+            continue
+        notify_task_event(db, task=task, actor=actor, title=title, message=message, user_id=watcher_user_id)
+
+
+def _parse_mentions(content: str):
+    return {match.lower() for match in MENTION_PATTERN.findall(content or "")}
+
+
+def _resolve_mentions(db: Session, *, task: Task, content: str):
+    handles = _parse_mentions(content)
+    if not handles:
+        return []
+    users = db.query(User).filter(User.organization_id == task.organization_id).all()
+    matched = []
+    for user in users:
+        username = user.email.split("@", 1)[0].lower()
+        name_tokens = {token.lower() for token in user.full_name.replace(".", " ").split()}
+        if username in handles or handles.intersection(name_tokens):
+            matched.append(user)
+    return matched
 
 
 def list_tasks(
@@ -220,6 +300,8 @@ def list_tasks(
     team_id: int | None = None,
     sla_status: str | None = None,
     search: str | None = None,
+    parent_task_id: int | None = None,
+    watched_only: bool = False,
 ):
     query = task_query(db)
     assignee_user = aliased(User)
@@ -251,6 +333,10 @@ def list_tasks(
     if search:
         like = f"%{search.lower()}%"
         query = query.filter((Task.title.ilike(like)) | (Task.description.ilike(like)))
+    if parent_task_id is not None:
+        query = query.filter(Task.parent_task_id == parent_task_id)
+    if watched_only:
+        query = query.join(TaskWatcher, TaskWatcher.task_id == Task.id).filter(TaskWatcher.user_id == current_user.id)
     tasks = query.order_by(Task.updated_at.desc()).all()
     for task in tasks:
         enrich_task(task, db)
@@ -258,6 +344,14 @@ def list_tasks(
 
 
 def create_task(db: Session, payload, organization_id: int, actor: User):
+    if payload.assignee_id:
+        assignee = db.query(User).filter(User.id == payload.assignee_id).first()
+        if not assignee or assignee.organization_id != organization_id:
+            raise HTTPException(status_code=400, detail="Assignee must belong to the same organization")
+    if payload.parent_task_id:
+        parent_task = db.query(Task).filter(Task.id == payload.parent_task_id).first()
+        if not parent_task or parent_task.organization_id != organization_id:
+            raise HTTPException(status_code=400, detail="Parent task must belong to the same organization")
     task = Task(
         title=payload.title,
         description=payload.description,
@@ -266,6 +360,7 @@ def create_task(db: Session, payload, organization_id: int, actor: User):
         priority=normalize_priority(payload.priority),
         tags=payload.tags,
         related_knowledge_ids=payload.related_knowledge_ids,
+        parent_task_id=payload.parent_task_id,
         assignee_id=payload.assignee_id,
         creator_id=actor.id,
         due_at=payload.due_at,
@@ -275,6 +370,9 @@ def create_task(db: Session, payload, organization_id: int, actor: User):
     task.sla_status = compute_sla_status(task)
     db.add(task)
     db.flush()
+    db.add(TaskWatcher(task_id=task.id, user_id=actor.id))
+    if task.assignee_id and task.assignee_id != actor.id:
+        db.add(TaskWatcher(task_id=task.id, user_id=task.assignee_id))
     log_task_activity(
         db,
         task_id=task.id,
@@ -284,6 +382,7 @@ def create_task(db: Session, payload, organization_id: int, actor: User):
     )
     db.commit()
     db.refresh(task)
+    task = enrich_task(get_task_by_id(db, task.id), db)
 
     if task.assignee_id:
         notify_task_event(
@@ -295,7 +394,8 @@ def create_task(db: Session, payload, organization_id: int, actor: User):
             severity="high" if task.priority in {"high", "critical"} else "medium",
             user_id=task.assignee_id,
         )
-    return enrich_task(get_task_by_id(db, task.id), db)
+    _publish_task_event("task_created", task, {"message": f"{actor.full_name} created {task.title}"})
+    return task
 
 
 def get_task_by_id(db: Session, task_id: int):
@@ -333,6 +433,7 @@ def update_task(db: Session, *, task_id: int, payload, actor: User):
         "related_knowledge_id": str(task.related_knowledge_id) if task.related_knowledge_id else None,
         "related_knowledge_ids": ", ".join(str(item) for item in task.related_knowledge_ids),
         "tags": ", ".join(task.tags),
+        "parent_task_id": str(task.parent_task_id) if task.parent_task_id else None,
     }
 
     next_status = validate_status_transition(task.status, payload.status)
@@ -348,6 +449,7 @@ def update_task(db: Session, *, task_id: int, payload, actor: User):
     task.due_at = payload.due_at
     task.sla_hours = payload.sla_hours
     task.related_knowledge_id = payload.related_knowledge_id
+    task.parent_task_id = payload.parent_task_id
     task.sla_status = compute_sla_status(task)
 
     change_map = {
@@ -361,6 +463,7 @@ def update_task(db: Session, *, task_id: int, payload, actor: User):
         "related_knowledge_id": str(task.related_knowledge_id) if task.related_knowledge_id else None,
         "related_knowledge_ids": ", ".join(str(item) for item in task.related_knowledge_ids),
         "tags": ", ".join(task.tags),
+        "parent_task_id": str(task.parent_task_id) if task.parent_task_id else None,
     }
 
     for field_name, new_value in change_map.items():
@@ -394,6 +497,8 @@ def update_task(db: Session, *, task_id: int, payload, actor: User):
         notify_task_event(db, task=task, actor=actor, title="Task status updated", message=f"status is now {task.status}", user_id=task.assignee_id, role_target="MANAGER")
     if any(previous_values[field] != change_map[field] for field in {"title", "description", "priority", "due_at", "sla_hours", "related_knowledge_id", "related_knowledge_ids", "tags"}):
         notify_task_event(db, task=task, actor=actor, title="Task updated", message="details were updated", user_id=task.assignee_id)
+    _notify_task_watchers(db, task=full_task, actor=actor, title="Task updated", message="was updated", exclude_user_ids={actor.id, task.assignee_id or 0})
+    _publish_task_event("task_updated", full_task, {"message": f"{actor.full_name} updated {task.title}"})
     return full_task
 
 
@@ -417,7 +522,10 @@ def update_task_status(db: Session, task_id: int, status: str, actor: User):
     db.commit()
     db.refresh(task)
     notify_task_event(db, task=task, actor=actor, title="Task status updated", message=f"status is now {task.status}", user_id=task.assignee_id, role_target="MANAGER")
-    return enrich_task(get_task_by_id(db, task.id), db)
+    task = enrich_task(get_task_by_id(db, task.id), db)
+    _notify_task_watchers(db, task=task, actor=actor, title="Task status updated", message=f"moved to {task.status}", exclude_user_ids={actor.id, task.assignee_id or 0})
+    _publish_task_event("task_status_changed", task, {"message": f"{actor.full_name} moved {task.title} to {task.status}"})
+    return task
 
 
 def add_task_comment(db: Session, *, task_id: int, actor: User, content: str):
@@ -436,6 +544,15 @@ def add_task_comment(db: Session, *, task_id: int, actor: User, content: str):
     task = get_task_by_id(db, task_id)
     if task:
         notify_task_event(db, task=task, actor=actor, title="Task comment added", message="received a new comment", user_id=task.assignee_id, role_target="MANAGER")
+        comment = db.query(TaskComment).options(joinedload(TaskComment.author).joinedload(User.team)).filter(TaskComment.id == comment.id).first()
+        task = enrich_task(task, db)
+        _notify_task_watchers(db, task=task, actor=actor, title="Task comment added", message="received a new comment", exclude_user_ids={actor.id, task.assignee_id or 0})
+        for mentioned_user in _resolve_mentions(db, task=task, content=content):
+            if mentioned_user.id == actor.id:
+                continue
+            create_notification(db, title="Mentioned in task comment", message=f"{actor.full_name} mentioned you in {task.title}.", organization_id=task.organization_id, type_="mention", severity="medium", user_id=mentioned_user.id)
+            publish_event("task_mentioned", {"task": serialize_task_snapshot(task), "comment": serialize_comment_snapshot(comment), "message": f"{actor.full_name} mentioned you in {task.title}"}, organization_id=task.organization_id, user_id=mentioned_user.id)
+        _publish_task_event("task_commented", task, {"message": f"{actor.full_name} commented on {task.title}", "comment": serialize_comment_snapshot(comment)})
     return comment
 
 
@@ -502,4 +619,48 @@ def add_task_attachment(db: Session, *, task: Task, actor: User, upload: UploadF
     db.commit()
     db.refresh(attachment)
     notify_task_event(db, task=task, actor=actor, title="Task attachment added", message=f"received attachment {safe_name}", user_id=task.assignee_id)
+    attachment = db.query(TaskAttachment).options(joinedload(TaskAttachment.uploader).joinedload(User.team)).filter(TaskAttachment.id == attachment.id).first()
+    enriched_task = enrich_task(get_task_by_id(db, task.id), db)
+    _notify_task_watchers(db, task=enriched_task, actor=actor, title="Task attachment added", message=f"received attachment {safe_name}", exclude_user_ids={actor.id, task.assignee_id or 0})
+    _publish_task_event("task_updated", enriched_task, {"message": f"{actor.full_name} uploaded {safe_name}", "attachment": serialize_attachment_snapshot(attachment)})
     return attachment
+
+
+def watch_task(db: Session, *, task: Task, actor: User):
+    existing = db.query(TaskWatcher).filter(TaskWatcher.task_id == task.id, TaskWatcher.user_id == actor.id).first()
+    if existing:
+        return existing
+    watcher = TaskWatcher(task_id=task.id, user_id=actor.id)
+    db.add(watcher)
+    log_task_activity(db, task_id=task.id, user_id=actor.id, action_type="watch_added", message=f"{actor.full_name} is now watching the task")
+    db.commit()
+    watcher = db.query(TaskWatcher).options(joinedload(TaskWatcher.user).joinedload(User.team)).filter(TaskWatcher.task_id == task.id, TaskWatcher.user_id == actor.id).first()
+    enriched_task = enrich_task(get_task_by_id(db, task.id), db)
+    _publish_task_event("task_updated", enriched_task, {"message": f"{actor.full_name} is now watching {task.title}"})
+    return watcher
+
+
+def unwatch_task(db: Session, *, task: Task, actor: User):
+    existing = db.query(TaskWatcher).filter(TaskWatcher.task_id == task.id, TaskWatcher.user_id == actor.id).first()
+    if not existing:
+        return False
+    db.delete(existing)
+    log_task_activity(db, task_id=task.id, user_id=actor.id, action_type="watch_removed", message=f"{actor.full_name} stopped watching the task")
+    db.commit()
+    enriched_task = enrich_task(get_task_by_id(db, task.id), db)
+    _publish_task_event("task_updated", enriched_task, {"message": f"{actor.full_name} stopped watching {task.title}"})
+    return True
+
+
+def create_subtask(db: Session, *, parent_task: Task, actor: User, payload):
+    subtask_payload = type("SubtaskPayload", (), {"title": payload.title, "description": payload.description, "status": "TODO", "priority": payload.priority, "tags": payload.tags, "related_knowledge_ids": [], "assignee_id": payload.assignee_id, "due_at": payload.due_at, "sla_hours": payload.sla_hours, "related_knowledge_id": parent_task.related_knowledge_id, "parent_task_id": parent_task.id})
+    task = create_task(db, subtask_payload, parent_task.organization_id, actor)
+    publish_event("task_updated", {"task": serialize_task_snapshot(parent_task), "message": f"{actor.full_name} created a subtask under {parent_task.title}"}, organization_id=parent_task.organization_id)
+    return task
+
+
+def list_subtasks(db: Session, *, parent_task_id: int):
+    subtasks = task_query(db).filter(Task.parent_task_id == parent_task_id).order_by(Task.created_at.asc()).all()
+    for task in subtasks:
+        enrich_task(task, db)
+    return subtasks

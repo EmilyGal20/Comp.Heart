@@ -3,6 +3,7 @@ import {
   Apartment,
   AutoAwesome,
   Hub,
+  Insights,
   Logout,
   MenuBook,
   Notifications,
@@ -12,6 +13,7 @@ import {
   SpaceDashboard,
   TaskAlt,
   Tune,
+  WorkOutline,
 } from "@mui/icons-material";
 import {
   AppBar,
@@ -35,17 +37,23 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../store/AuthContext";
+import { useRealtime } from "../store/RealtimeContext";
 
 const drawerWidth = 292;
 
 const navItems = [
-  { label: "Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Global Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["SUPER_ADMIN"] },
+  { label: "Org Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["ADMIN", "MANAGER"] },
+  { label: "My Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["USER"] },
   { label: "Control Center", path: "/control-center", icon: <Shield />, roles: ["SUPER_ADMIN"] },
-  { label: "Knowledge Base", path: "/knowledge", icon: <MenuBook />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Organizations", path: "/organizations", icon: <Apartment />, roles: ["SUPER_ADMIN"] },
+  { label: "My Work", path: "/my-work", icon: <WorkOutline />, roles: ["USER"] },
+  { label: "Knowledge", path: "/knowledge", icon: <MenuBook />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Tasks", path: "/tasks", icon: <TaskAlt />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Automation", path: "/automation", icon: <Hub />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
   { label: "People", path: "/employees", icon: <People />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
-  { label: "AI Assistant", path: "/ai", icon: <AutoAwesome />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Activity", path: "/activity", icon: <Insights />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "AI", path: "/ai", icon: <AutoAwesome />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Notifications", path: "/notifications", icon: <Notifications />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Settings", path: "/settings", icon: <Settings />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
 ];
@@ -54,6 +62,7 @@ function AppShell({ children }) {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const { user, logout, organizations, activeOrganizationId, scopedOrganization, setScopedOrganizationId } = useAuth();
+  const { connectionState, versions } = useRealtime();
 
   const allowedNavItems = useMemo(
     () => navItems.filter((item) => item.roles.includes(user.role)),
@@ -167,6 +176,8 @@ function AppShell({ children }) {
               label={scopedOrganization ? scopedOrganization.slug : "all organizations"}
               color={user.role === "SUPER_ADMIN" ? "secondary" : "info"}
             />
+            <Chip label={`Live ${connectionState}`} color={connectionState === "connected" ? "success" : "default"} variant="outlined" />
+            <Chip label={`${versions.notifications} signal sync`} variant="outlined" />
             <Chip label={user.role.replace("_", " ")} color={user.role === "SUPER_ADMIN" ? "error" : "primary"} />
             {user.role === "SUPER_ADMIN" ? (
               <FormControl size="small" sx={{ minWidth: 210 }}>

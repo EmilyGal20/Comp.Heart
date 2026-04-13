@@ -6,9 +6,11 @@ import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
 import StatusPill from "../components/StatusPill";
 import { useAuth } from "../store/AuthContext";
+import { useRealtime } from "../store/RealtimeContext";
 
 function DashboardPage() {
   const { user, activeOrganizationId, scopedOrganization } = useAuth();
+  const { versions, connectionState } = useRealtime();
   const [summary, setSummary] = useState(null);
   const [personal, setPersonal] = useState(null);
 
@@ -20,7 +22,7 @@ function DashboardPage() {
       setSummary(summaryResponse.data);
       setPersonal(personalResponse.data);
     });
-  }, [activeOrganizationId]);
+  }, [activeOrganizationId, versions.activity, versions.notifications, versions.tasks]);
 
   if (!summary || !personal) {
     return <CircularProgress />;
@@ -42,12 +44,13 @@ function DashboardPage() {
         actions={[
           <Chip key="scope" label={scopedOrganization?.name || "All organizations"} color="secondary" />,
           <Chip key="role" label={user.role.replace("_", " ")} color={user.role === "SUPER_ADMIN" ? "error" : "primary"} />,
+          <Chip key="live" label={`Realtime ${connectionState}`} color={connectionState === "connected" ? "success" : "default"} variant="outlined" />,
         ]}
       />
       <Grid container spacing={2.5}>
         <Grid item xs={12} md={6} xl={3}><MetricCard label={user.role === "USER" ? "My open tasks" : "Open tasks"} value={user.role === "USER" ? personal.summary.my_open_tasks : summary.open_tasks} helper="Immediate work requiring attention" accent="rgba(61,200,255,0.28)" /></Grid>
         <Grid item xs={12} md={6} xl={3}><MetricCard label="Overdue pressure" value={user.role === "USER" ? personal.summary.overdue_tasks : summary.overdue_tasks} helper="SLA risks and delayed execution" accent="rgba(255,107,122,0.25)" /></Grid>
-        <Grid item xs={12} md={6} xl={3}><MetricCard label="Recommended docs" value={user.role === "USER" ? personal.summary.recommended_docs : summary.total_knowledge_items} helper="Relevant knowledge available now" accent="rgba(155,124,255,0.25)" /></Grid>
+        <Grid item xs={12} md={6} xl={3}><MetricCard label={user.role === "USER" ? "Mentions" : "Recommended docs"} value={user.role === "USER" ? personal.summary.mentions : summary.total_knowledge_items} helper={user.role === "USER" ? "Conversation pull-ins that need you" : "Relevant knowledge available now"} accent="rgba(155,124,255,0.25)" /></Grid>
         <Grid item xs={12} md={6} xl={3}><MetricCard label="Unread alerts" value={user.role === "USER" ? personal.summary.unread_notifications : summary.unread_notifications} helper="Signals still waiting on review" accent="rgba(57,217,138,0.18)" /></Grid>
         <Grid item xs={12} lg={7}>
           <GlassPanel title={user.role === "USER" ? "My task lane" : "Priority execution lane"} subtitle="The items most likely to shape your next move" minHeight={340}>
@@ -73,15 +76,15 @@ function DashboardPage() {
           </GlassPanel>
         </Grid>
         <Grid item xs={12} lg={5}>
-          <GlassPanel title="Recent notifications" subtitle="The latest alerts relevant to your scope" minHeight={340}>
+          <GlassPanel title={user.role === "USER" ? "Recent mentions and alerts" : "Recent notifications"} subtitle="The latest alerts relevant to your scope" minHeight={340}>
             <Stack spacing={1.5}>
-              {personal.recent_notifications.map((notification) => (
+              {(user.role === "USER" ? [...personal.mentions, ...personal.recent_notifications].slice(0, 6) : personal.recent_notifications).map((notification) => (
                 <Stack key={notification.id} sx={{ p: 1.5, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
                   <Stack direction="row" justifyContent="space-between" spacing={1}>
                     <Typography variant="subtitle2">{notification.title}</Typography>
-                    <StatusPill value={notification.severity} />
+                    {notification.severity ? <StatusPill value={notification.severity} /> : null}
                   </Stack>
-                  <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>{notification.type}</Typography>
+                  <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>{notification.type || notification.message}</Typography>
                 </Stack>
               ))}
             </Stack>
@@ -94,6 +97,21 @@ function DashboardPage() {
                 <Stack direction="row" justifyContent="space-between" key={key}>
                   <Typography>{key.replaceAll("_", " ")}</Typography>
                   <Typography color="primary.main">{value}</Typography>
+                </Stack>
+              ))}
+            </Stack>
+          </GlassPanel>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <GlassPanel title={user.role === "USER" ? "Watched tasks" : "Activity pulse"} subtitle={user.role === "USER" ? "Items you asked to follow closely" : "Recent movement in your visible scope"}>
+            <Stack spacing={1.2}>
+              {(user.role === "USER" ? personal.watched_tasks : personal.recent_activity.slice(0, 5)).map((item) => (
+                <Stack key={item.id || item.label} direction="row" justifyContent="space-between" sx={{ p: 1.3, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
+                  <div>
+                    <Typography variant="subtitle2">{item.title || item.label}</Typography>
+                    <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>{item.status || item.detail}</Typography>
+                  </div>
+                  {item.sla_status ? <StatusPill value={item.sla_status} /> : null}
                 </Stack>
               ))}
             </Stack>

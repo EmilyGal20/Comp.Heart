@@ -31,6 +31,7 @@ class UserRead(BaseModel):
     is_active: bool
     created_at: datetime
     organization_id: int
+    team_id: Optional[int] = None
     organization: Optional[OrganizationRead] = None
     team: Optional[TeamRead] = None
 
@@ -47,6 +48,22 @@ class UserCreate(BaseModel):
     team_id: Optional[int] = None
     organization_id: Optional[int] = None
     password: str = "demo123"
+    is_active: bool = True
+
+
+class UserUpdate(BaseModel):
+    full_name: str
+    email: str
+    role: str
+    title: str
+    responsibilities: str = ""
+    team_id: Optional[int] = None
+    organization_id: Optional[int] = None
+    is_active: bool = True
+
+
+class UserStatusUpdate(BaseModel):
+    is_active: bool
 
 
 class UserDashboard(BaseModel):

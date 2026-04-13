@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.permissions import ROLE_MANAGER
 from app.db.session import get_db
 from app.schemas.task import (
     TaskAIActionRequest,
@@ -11,27 +10,35 @@ from app.schemas.task import (
     TaskCommentRead,
     TaskCreate,
     TaskRead,
+    TaskReadLight,
     TaskStatusUpdate,
+    TaskSubtaskCreate,
     TaskUpdate,
     TaskActivityRead,
+    TaskWatcherRead,
 )
 from app.services.ai_service import task_assist
 from app.services.task_service import (
     add_task_attachment,
     add_task_comment,
     can_edit_task,
+    can_create_task,
     can_view_task,
     create_task,
+    create_subtask,
     enrich_task,
     get_task_by_id,
     list_task_activity,
     list_task_attachments,
     list_task_comments,
     list_tasks,
+    list_subtasks,
     update_task,
     update_task_status,
+    unwatch_task,
+    watch_task,
 )
-from app.utils.dependencies import get_current_user, require_min_role, resolve_org_scope
+from app.utils.dependencies import get_current_user, resolve_org_scope
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -46,6 +53,8 @@ def get_tasks(
     team_id: int | None = Query(default=None),
     sla_status: str | None = Query(default=None),
     search: str | None = Query(default=None),
+    parent_task_id: int | None = Query(default=None),
+    watched_only: bool = Query(default=False),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -60,6 +69,8 @@ def get_tasks(
         team_id=team_id,
         sla_status=sla_status,
         search=search,
+        parent_task_id=parent_task_id,
+        watched_only=watched_only,
     )
 
 
@@ -67,8 +78,10 @@ def get_tasks(
 def create_task_endpoint(
     payload: TaskCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(require_min_role(ROLE_MANAGER)),
+    current_user=Depends(get_current_user),
 ):
+    if not can_create_task(current_user):
+        raise HTTPException(status_code=403, detail="You cannot create tasks")
     scoped_org_id = resolve_org_scope(payload.organization_id, current_user, db, allow_global=False)
     return create_task(db, payload, scoped_org_id, current_user)
 
@@ -110,7 +123,8 @@ def patch_task_status(task_id: int, payload: TaskStatusUpdate, db: Session = Dep
     return updated
 
 
-@router.post("/{task_id}/comment", response_model=TaskCommentRead)
+@router.post("/{task_id}/comments", response_model=TaskCommentRead)
+@router.post("/{task_id}/comment", response_model=TaskCommentRead, include_in_schema=False)
 def post_comment(task_id: int, payload: TaskCommentCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     _load_authorized_task(db, task_id, current_user)
     return add_task_comment(db, task_id=task_id, actor=current_user, content=payload.content)
@@ -145,6 +159,32 @@ def upload_attachment(
 def get_attachments(task_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     _load_authorized_task(db, task_id, current_user)
     return list_task_attachments(db, task_id)
+
+
+@router.post("/{task_id}/watch", response_model=TaskWatcherRead)
+def post_watch(task_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    task = _load_authorized_task(db, task_id, current_user)
+    return watch_task(db, task=task, actor=current_user)
+
+
+@router.delete("/{task_id}/watch")
+def delete_watch(task_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    task = _load_authorized_task(db, task_id, current_user)
+    return {"removed": unwatch_task(db, task=task, actor=current_user)}
+
+
+@router.post("/{task_id}/subtasks", response_model=TaskRead)
+def post_subtask(task_id: int, payload: TaskSubtaskCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    task = _load_authorized_task(db, task_id, current_user)
+    if not can_edit_task(current_user, task):
+        raise HTTPException(status_code=403, detail="You cannot create subtasks for this task")
+    return create_subtask(db, parent_task=task, actor=current_user, payload=payload)
+
+
+@router.get("/{task_id}/subtasks", response_model=list[TaskReadLight])
+def get_subtasks(task_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    _load_authorized_task(db, task_id, current_user)
+    return list_subtasks(db, parent_task_id=task_id)
 
 
 @router.post("/{task_id}/ai-assist", response_model=TaskAIActionResponse)

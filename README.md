@@ -14,7 +14,8 @@ CompHeart is a premium internal company operating system for multi-organization 
 - Better manager and regular-user experiences with personalized dashboards and more useful filtering.
 - Role-aware CompHeart AI responses based on organization context and user responsibility.
 - Segmented notifications for personal, org-wide, and role-targeted alerts.
-- Collaborative task workspace with comments, activity timeline, attachments, full task editing, and AI task helpers.
+- Realtime websocket layer for live task changes, comments, mentions, notifications, org updates, and user updates.
+- Collaborative task workspace with comments, activity timeline, attachments, watchers, subtasks, board/list views, and AI task helpers.
 
 ## Stack
 
@@ -25,10 +26,10 @@ CompHeart is a premium internal company operating system for multi-organization 
 
 ## Role Hierarchy
 
-- `SUPER_ADMIN`: can view all organizations, use global mode, compare orgs, create organizations, and manage cross-org visibility.
-- `ADMIN`: manages users, workflows, automations, and operational oversight within one organization.
+- `SUPER_ADMIN`: can view all organizations, use global mode, compare orgs, create and edit organizations, activate or deactivate organizations, and manage users across orgs.
+- `ADMIN`: manages users, workflows, automations, and operational oversight within one organization only.
 - `MANAGER`: monitors team workload, assignments, SLA posture, and team-level execution visibility.
-- `USER`: sees a personalized workspace with their tasks, alerts, recommended docs, and AI help.
+- `USER`: sees a personalized workspace with their tasks, watched work, mentions, alerts, recommended docs, and AI help.
 
 ## Multi-Organization Model
 
@@ -82,13 +83,14 @@ compheart/
 - `auth`: org-aware login, `/me`, token handling
 - `organizations`: organization list/detail/users/teams/summary
 - `admin`: global summary, organization comparison, scoped admin data
-- `users`: scoped user directory, creation, personalized dashboard
+- `users`: scoped user directory, creation, editing, activation, personalized dashboard
 - `knowledge`: organization-aware search and retrieval
-- `tasks`: scoped task list, filtering, status updates, SLA and risk scoring
+- `tasks`: scoped task list, filtering, status updates, comments, watchers, subtasks, mentions, attachments, SLA and risk scoring
 - `automation`: org-aware workflow rule management
 - `notifications`: segmented notification center
 - `ai`: org-aware AI chat and saved conversations
 - `dashboard`: role-aware dashboard summary endpoint
+- `websocket`: organization-aware live updates for tasks, notifications, org changes, and user changes
 
 ## Database Models
 
@@ -101,6 +103,7 @@ compheart/
 - `TaskActivity`
 - `TaskAttachment`
 - `TaskComment`
+- `TaskWatcher`
 - `AutomationRule`
 - `Notification`
 - `AIConversation`
@@ -185,7 +188,7 @@ The upgraded seed bootstraps a realistic multi-org environment:
 - 10 users across all role levels
 - organization-specific knowledge entries
 - org-distributed tasks with SLA variation
-- comments, activity history, and attachment-ready task records
+- comments, activity history, watchers, subtasks, and attachment-ready task records
 - org-specific automation rules
 - personal, org-wide, and role-targeted notifications
 - stored AI conversations
@@ -215,6 +218,8 @@ Organizations:
 
 - `GET /api/organizations`
 - `POST /api/organizations`
+- `PUT /api/organizations/{id}`
+- `PATCH /api/organizations/{id}/status`
 - `GET /api/organizations/{id}`
 - `GET /api/organizations/{id}/users`
 - `GET /api/organizations/{id}/teams`
@@ -226,11 +231,14 @@ Admin / Global:
 - `GET /api/admin/organization-comparison`
 - `GET /api/admin/users`
 - `GET /api/admin/tasks`
+- `GET /api/admin/activity`
 
 Users:
 
 - `GET /api/users`
 - `POST /api/users`
+- `PUT /api/users/{id}`
+- `PATCH /api/users/{id}/status`
 - `GET /api/users/{id}`
 - `GET /api/users/me/dashboard`
 
@@ -248,11 +256,15 @@ Tasks:
 - `GET /api/tasks/{id}`
 - `PUT /api/tasks/{id}`
 - `PATCH /api/tasks/{id}/status`
-- `POST /api/tasks/{id}/comment`
+- `POST /api/tasks/{id}/comments`
 - `GET /api/tasks/{id}/comments`
 - `GET /api/tasks/{id}/activity`
 - `POST /api/tasks/{id}/attachments`
 - `GET /api/tasks/{id}/attachments`
+- `POST /api/tasks/{id}/watch`
+- `DELETE /api/tasks/{id}/watch`
+- `POST /api/tasks/{id}/subtasks`
+- `GET /api/tasks/{id}/subtasks`
 - `POST /api/tasks/{id}/ai-assist`
 
 Automation:
@@ -267,6 +279,10 @@ Notifications:
 
 - `GET /api/notifications`
 - `PATCH /api/notifications/{id}/read`
+
+Realtime:
+
+- `GET /ws/live?token=<jwt>&scope_org_id=<optional_org_id>`
 
 AI:
 
@@ -286,10 +302,12 @@ The frontend now includes:
 - role-aware sidebar navigation
 - top-bar organization context and super admin switcher
 - dedicated global control center for super admins
+- dedicated organizations management page for super admins
 - improved admin and manager workflows
-- personalized user dashboard
+- personalized user dashboard and My Work area
+- activity feed page
 - org-aware knowledge, tasks, notifications, and AI flows
-- rich task detail drawer with comments, timeline, attachments, editing, and AI actions
+- rich task detail drawer with comments, timeline, attachments, editing, watchers, subtasks, and AI actions
 
 ## Task Collaboration Upgrade
 
@@ -299,6 +317,10 @@ The task system now supports:
 - comments with author and timestamp
 - automatic task activity timeline
 - attachments stored locally with download links
+- task watchers and followers
+- subtask creation and progress visibility
+- @mention detection in comments with notifications
+- board view and list view toggle
 - advanced filtering by search, status, priority, assignee, team, SLA state, and organization scope
 - AI task helper actions for summary, next steps, and subtasks
 
@@ -322,6 +344,16 @@ Task activity is generated automatically for:
 
 Notifications are emitted for key task events such as assignment, updates, comments, status changes, and overdue pressure.
 
+## Realtime Collaboration
+
+CompHeart now includes a websocket live-update channel:
+
+- task creation, edits, status changes, comments, and watch state update live
+- notification badges and mention alerts update live
+- organization and user management changes can propagate to connected clients
+- super admins can stay global or scoped to one organization in realtime
+- the frontend reconnects automatically and surfaces non-intrusive toast alerts
+
 ## Migration Note
 
 This upgrade changes the SQLite schema to support organizations and role hierarchy. On startup, CompHeart detects older single-org schemas and rebuilds the local SQLite database automatically so the new seed can initialize cleanly.
@@ -344,5 +376,5 @@ The upgraded backend now enforces:
 - editable organizations and teams from the UI
 - richer task comments and assignment flows
 - vector search and stronger retrieval for CompHeart AI
-- websocket notifications and live dashboard updates
+- richer team management and editable team structures
 - background automation execution and schedules

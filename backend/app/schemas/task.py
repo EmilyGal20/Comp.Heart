@@ -46,6 +46,15 @@ class TaskAttachmentRead(BaseModel):
         from_attributes = True
 
 
+class TaskWatcherRead(BaseModel):
+    id: int
+    created_at: datetime
+    user: Optional[UserRead] = None
+
+    class Config:
+        from_attributes = True
+
+
 class TaskAIActionRequest(BaseModel):
     action: str
 
@@ -63,6 +72,7 @@ class TaskCreate(BaseModel):
     sla_hours: int = 24
     related_knowledge_id: Optional[int] = None
     related_knowledge_ids: List[int] = []
+    parent_task_id: Optional[int] = None
 
 
 class TaskUpdate(BaseModel):
@@ -76,10 +86,21 @@ class TaskUpdate(BaseModel):
     sla_hours: int
     related_knowledge_id: Optional[int] = None
     related_knowledge_ids: List[int] = []
+    parent_task_id: Optional[int] = None
 
 
 class TaskStatusUpdate(BaseModel):
     status: str
+
+
+class TaskSubtaskCreate(BaseModel):
+    title: str
+    description: str = ""
+    priority: str = "medium"
+    assignee_id: Optional[int] = None
+    due_at: Optional[datetime] = None
+    sla_hours: int = 24
+    tags: List[str] = []
 
 
 class TaskRead(BaseModel):
@@ -96,6 +117,7 @@ class TaskRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     risk_score: int = 0
+    parent_task_id: Optional[int] = None
     assignee: Optional[UserRead] = None
     creator: Optional[UserRead] = None
     related_knowledge: Optional[KnowledgeRead] = None
@@ -104,6 +126,21 @@ class TaskRead(BaseModel):
     comments: List[TaskCommentRead] = []
     activities: List[TaskActivityRead] = []
     attachments: List[TaskAttachmentRead] = []
+    watchers: List[TaskWatcherRead] = []
+    subtasks: List["TaskReadLight"] = []
+    subtask_progress: dict = {}
+
+    class Config:
+        from_attributes = True
+
+
+class TaskReadLight(BaseModel):
+    id: int
+    title: str
+    status: str
+    priority: str
+    assignee: Optional[UserRead] = None
+    due_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -112,3 +149,6 @@ class TaskRead(BaseModel):
 class TaskAIActionResponse(BaseModel):
     action: str
     result: str
+
+
+TaskRead.model_rebuild()

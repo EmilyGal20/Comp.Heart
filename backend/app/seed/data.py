@@ -9,7 +9,7 @@ from app.models.automation import AutomationRule
 from app.models.knowledge import KnowledgeItem, KnowledgeTag
 from app.models.notification import Notification
 from app.models.organization import Organization
-from app.models.task import Task, TaskActivity, TaskAttachment, TaskComment
+from app.models.task import Task, TaskActivity, TaskAttachment, TaskComment, TaskWatcher
 from app.models.user import Team, User
 
 
@@ -72,13 +72,15 @@ def seed_database(db: Session):
         Task(title="Tune automation severity mapping", description="Refine the threshold logic used for manager-facing automation alerts.", organization_id=organizations[1].id, status="TODO", priority="medium", tags=["automation", "alerts"], related_knowledge_ids=[knowledge_items[1].id], assignee_id=users[6].id, creator_id=users[5].id, due_at=now + timedelta(days=1), sla_hours=24, sla_status="on_track", related_knowledge_id=knowledge_items[1].id),
         Task(title="Coordinate west region store rollout", description="Align training schedule, issue coverage, and overnight support for the next launch wave.", organization_id=organizations[2].id, status="IN_PROGRESS", priority="high", tags=["retail", "rollout"], related_knowledge_ids=[knowledge_items[2].id], assignee_id=users[9].id, creator_id=users[8].id, due_at=now + timedelta(hours=16), sla_hours=20, sla_status="warning", related_knowledge_id=knowledge_items[2].id),
         Task(title="Refresh systems coordinator checklist", description="Update task and communication checklists for the store systems coordinator role.", organization_id=organizations[2].id, status="TODO", priority="low", tags=["documentation", "onboarding"], related_knowledge_ids=[knowledge_items[2].id], assignee_id=users[9].id, creator_id=users[7].id, due_at=now + timedelta(days=3), sla_hours=48, sla_status="on_track", related_knowledge_id=knowledge_items[2].id),
+        Task(title="Validate stakeholder update template", description="Draft the communication update that goes out once the billing incident root cause is confirmed.", organization_id=organizations[0].id, status="TODO", priority="medium", tags=["communication", "subtask"], related_knowledge_ids=[knowledge_items[0].id], assignee_id=users[2].id, creator_id=users[1].id, due_at=now + timedelta(hours=4), sla_hours=6, sla_status="warning", related_knowledge_id=knowledge_items[0].id),
     ]
     db.add_all(tasks)
     db.flush()
+    tasks[6].parent_task_id = tasks[0].id
 
     comments = [
         TaskComment(task_id=tasks[0].id, author_id=users[1].id, content="Raised this in the morning operations review.\nNeed an owner for the communication follow-up."),
-        TaskComment(task_id=tasks[0].id, author_id=users[3].id, content="Investigating the delayed claim webhook path now."),
+        TaskComment(task_id=tasks[0].id, author_id=users[3].id, content="Investigating the delayed claim webhook path now.\n@ava can you review the outbound communication sequence once I confirm the fix?"),
         TaskComment(task_id=tasks[2].id, author_id=users[5].id, content="We need telemetry validation before approving the release."),
         TaskComment(task_id=tasks[4].id, author_id=users[8].id, content="Store leaders requested more rollout coaching coverage."),
     ]
@@ -93,8 +95,18 @@ def seed_database(db: Session):
         TaskActivity(task_id=tasks[2].id, user_id=users[6].id, action_type="comment_added", message="Iris Solis added a comment"),
         TaskActivity(task_id=tasks[4].id, user_id=users[8].id, action_type="created", message="Marcus Hale created the task"),
         TaskActivity(task_id=tasks[4].id, user_id=users[9].id, action_type="status_changed", field_changed="status", old_value="TODO", new_value="IN_PROGRESS", message="Nina Torres changed status to IN_PROGRESS"),
+        TaskActivity(task_id=tasks[6].id, user_id=users[1].id, action_type="created", message="Maya Chen created the subtask"),
     ]
     db.add_all(activities)
+    db.add_all([
+        TaskWatcher(task_id=tasks[0].id, user_id=users[1].id),
+        TaskWatcher(task_id=tasks[0].id, user_id=users[2].id),
+        TaskWatcher(task_id=tasks[0].id, user_id=users[3].id),
+        TaskWatcher(task_id=tasks[2].id, user_id=users[4].id),
+        TaskWatcher(task_id=tasks[2].id, user_id=users[5].id),
+        TaskWatcher(task_id=tasks[4].id, user_id=users[8].id),
+        TaskWatcher(task_id=tasks[4].id, user_id=users[9].id),
+    ])
 
     uploads_root = Path(get_settings().uploads_dir)
     uploads_root.mkdir(parents=True, exist_ok=True)
@@ -121,6 +133,7 @@ def seed_database(db: Session):
     notifications = [
         Notification(title="Northstar SLA warning", message="Patient billing escalation is now overdue and visible to support leadership.", organization_id=organizations[0].id, type="sla", severity="critical", user_id=users[3].id, role_target="MANAGER", is_org_wide=False, is_read=False),
         Notification(title="Northstar org announcement", message="Incident update templates were refreshed for all support teams.", organization_id=organizations[0].id, type="announcement", severity="low", user_id=None, role_target=None, is_org_wide=True, is_read=False),
+        Notification(title="Mentioned in task comment", message="Leo Grant mentioned you in Stabilize patient billing escalation lane.", organization_id=organizations[0].id, type="mention", severity="medium", user_id=users[2].id, role_target=None, is_org_wide=False, is_read=False),
         Notification(title="Aether release risk elevated", message="Friday release command center has entered high-risk status.", organization_id=organizations[1].id, type="task", severity="high", user_id=users[6].id, role_target="MANAGER", is_org_wide=False, is_read=False),
         Notification(title="Aether automation note", message="Automation severity mapping review was added to your queue.", organization_id=organizations[1].id, type="automation", severity="medium", user_id=users[6].id, role_target=None, is_org_wide=False, is_read=False),
         Notification(title="Harbor rollout announcement", message="West region rollout prep is entering final coordination mode.", organization_id=organizations[2].id, type="announcement", severity="medium", user_id=None, role_target="MANAGER", is_org_wide=True, is_read=False),

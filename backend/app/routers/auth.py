@@ -24,6 +24,10 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     )
     if not user or user.password != payload.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="User account is inactive")
+    if user.organization and not user.organization.is_active and user.role != "SUPER_ADMIN":
+        raise HTTPException(status_code=403, detail="Organization is inactive")
     if payload.organization_slug and user.organization.slug != payload.organization_slug and user.role != "SUPER_ADMIN":
         raise HTTPException(status_code=401, detail="User does not belong to the selected organization")
 

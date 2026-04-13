@@ -13,6 +13,8 @@ export const dashboardApi = {
 export const usersApi = {
   list: (params) => api.get("/users", { params }),
   create: (payload) => api.post("/users", payload),
+  update: (id, payload) => api.put(`/users/${id}`, payload),
+  updateStatus: (id, payload) => api.patch(`/users/${id}/status`, payload),
   detail: (id) => api.get(`/users/${id}`),
   myDashboard: () => api.get("/users/me/dashboard"),
 };
@@ -31,7 +33,7 @@ export const tasksApi = {
   update: (id, payload) => api.put(`/tasks/${id}`, payload),
   updateStatus: (id, status) => api.patch(`/tasks/${id}/status`, { status }),
   comments: (id) => api.get(`/tasks/${id}/comments`),
-  addComment: (id, payload) => api.post(`/tasks/${id}/comment`, payload),
+  addComment: (id, payload) => api.post(`/tasks/${id}/comments`, payload),
   activity: (id) => api.get(`/tasks/${id}/activity`),
   attachments: (id) => api.get(`/tasks/${id}/attachments`),
   uploadAttachment: (id, file) => {
@@ -42,6 +44,10 @@ export const tasksApi = {
     });
   },
   aiAssist: (id, action) => api.post(`/tasks/${id}/ai-assist`, { action }),
+  watch: (id) => api.post(`/tasks/${id}/watch`),
+  unwatch: (id) => api.delete(`/tasks/${id}/watch`),
+  subtasks: (id) => api.get(`/tasks/${id}/subtasks`),
+  createSubtask: (id, payload) => api.post(`/tasks/${id}/subtasks`, payload),
 };
 
 export const automationApi = {
@@ -69,6 +75,8 @@ export const organizationsApi = {
   teams: (id) => api.get(`/organizations/${id}/teams`),
   summary: (id) => api.get(`/organizations/${id}/summary`),
   create: (payload) => api.post("/organizations", payload),
+  update: (id, payload) => api.put(`/organizations/${id}`, payload),
+  updateStatus: (id, payload) => api.patch(`/organizations/${id}/status`, payload),
 };
 
 export const adminApi = {
@@ -76,4 +84,5 @@ export const adminApi = {
   organizationComparison: () => api.get("/admin/organization-comparison"),
   users: (params) => api.get("/admin/users", { params }),
   tasks: (params) => api.get("/admin/tasks", { params }),
+  activity: (params) => api.get("/admin/activity", { params }),
 };

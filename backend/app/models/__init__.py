@@ -3,7 +3,7 @@ from app.models.automation import AutomationRule
 from app.models.knowledge import KnowledgeItem, KnowledgeTag
 from app.models.notification import Notification
 from app.models.organization import Organization
-from app.models.task import Task, TaskActivity, TaskAttachment, TaskComment
+from app.models.task import Task, TaskActivity, TaskAttachment, TaskComment, TaskWatcher
 from app.models.user import Team, User
 
 __all__ = [
@@ -18,6 +18,7 @@ __all__ = [
     "TaskActivity",
     "TaskAttachment",
     "TaskComment",
+    "TaskWatcher",
     "Team",
     "User",
 ]

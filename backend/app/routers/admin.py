@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.permissions import ROLE_ADMIN, ROLE_SUPER_ADMIN
 from app.db.session import get_db
-from app.models.task import Task
+from app.models.task import Task, TaskActivity
 from app.models.user import Team, User
 from app.schemas.user import UserRead
 from app.services.dashboard_service import get_dashboard_summary
@@ -74,3 +74,18 @@ def admin_tasks(
         team_id=team_id,
         sla_status=sla_status,
     )
+
+
+@router.get("/activity")
+def admin_activity(
+    organization_id: int | None = Query(default=None),
+    limit: int = Query(default=20, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_min_role(ROLE_ADMIN)),
+):
+    scoped_org_id = resolve_org_scope(organization_id, current_user, db)
+    query = db.query(TaskActivity).join(Task, Task.id == TaskActivity.task_id)
+    if scoped_org_id is not None:
+        query = query.filter(Task.organization_id == scoped_org_id)
+    items = query.order_by(TaskActivity.created_at.desc()).limit(limit).all()
+    return [{"id": item.id, "task_id": item.task_id, "event_type": item.action_type, "message": item.message, "created_at": item.created_at, "user_id": item.user_id} for item in items]

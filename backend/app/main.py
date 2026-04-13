@@ -1,11 +1,15 @@
+import asyncio
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from jose import JWTError, jwt
 
 from app.core.config import get_settings
+from app.core.realtime import realtime_manager
 from app.db.session import SessionLocal, initialize_database
+from app.models.user import User
 from app.routers import admin, ai, auth, automation, dashboard, knowledge, notifications, organizations, tasks, users
 from app.seed.data import seed_database
 from app.services.automation_service import run_sla_scan
@@ -28,6 +32,7 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     initialize_database()
+    realtime_manager.set_loop(asyncio.get_event_loop())
     db = SessionLocal()
     try:
         seed_database(db)
@@ -39,6 +44,44 @@ def on_startup():
 @app.get("/")
 def root():
     return {"name": settings.app_name, "status": "healthy"}
+
+
+@app.websocket("/ws/live")
+async def live_updates(websocket: WebSocket):
+    token = websocket.query_params.get("token")
+    scope_org_id = websocket.query_params.get("scope_org_id")
+    if not token:
+        await websocket.close(code=4401)
+        return
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+        user_id = int(payload.get("user_id"))
+    except (JWTError, TypeError, ValueError):
+        await websocket.close(code=4401)
+        return
+    db = SessionLocal()
+    connection_id = None
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user.is_active:
+            await websocket.close(code=4403)
+            return
+        connection_id = await realtime_manager.connect(
+            websocket,
+            user_id=user.id,
+            organization_id=user.organization_id,
+            role=user.role,
+            scope_organization_id=int(scope_org_id) if scope_org_id else None,
+        )
+        await websocket.send_json({"event_type": "connection_ready", "organization_id": user.organization_id, "timestamp": asyncio.get_running_loop().time(), "data": {"message": "Realtime session connected", "role": user.role, "scope_organization_id": int(scope_org_id) if scope_org_id else None}})
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        if connection_id is not None:
+            realtime_manager.disconnect(connection_id)
+        db.close()
 
 
 app.mount("/uploads", StaticFiles(directory=uploads_path), name="uploads")

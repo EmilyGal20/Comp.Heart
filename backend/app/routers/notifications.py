@@ -14,6 +14,8 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 @router.get("", response_model=list[NotificationRead])
 def list_notifications(
     severity: str | None = Query(default=None),
+    type: str | None = Query(default=None),
+    organization_id: int | None = Query(default=None),
     unread_only: bool = Query(default=False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -21,6 +23,8 @@ def list_notifications(
     query = db.query(Notification).options(joinedload(Notification.user).joinedload(User.team))
     if current_user.role != "SUPER_ADMIN":
         query = query.filter(Notification.organization_id == current_user.organization_id)
+    elif organization_id:
+        query = query.filter(Notification.organization_id == organization_id)
     if current_user.role == "USER":
         query = query.filter(
             (Notification.user_id == current_user.id)
@@ -29,6 +33,8 @@ def list_notifications(
         )
     if severity:
         query = query.filter(Notification.severity == severity)
+    if type:
+        query = query.filter(Notification.type == type)
     if unread_only:
         query = query.filter(Notification.is_read.is_(False))
     return query.order_by(Notification.created_at.desc()).all()

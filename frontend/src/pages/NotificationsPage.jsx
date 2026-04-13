@@ -3,22 +3,30 @@ import { Button, Chip, MenuItem, Stack, TextField, Typography } from "@mui/mater
 import { notificationsApi } from "../api/endpoints";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
+import { useAuth } from "../store/AuthContext";
+import { useRealtime } from "../store/RealtimeContext";
 
 function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
-  const [filters, setFilters] = useState({ severity: "", unread_only: "false" });
+  const { activeOrganizationId, user } = useAuth();
+  const { versions, connectionState } = useRealtime();
+  const [filters, setFilters] = useState({ severity: "", type: "", unread_only: "false" });
 
   const load = () =>
     notificationsApi
       .list({
         severity: filters.severity || undefined,
+        type: filters.type || undefined,
+        organization_id: user.role === "SUPER_ADMIN" ? activeOrganizationId || undefined : undefined,
         unread_only: filters.unread_only === "true",
       })
       .then((response) => setNotifications(response.data));
 
   useEffect(() => {
     load();
-  }, [filters]);
+  }, [filters, activeOrganizationId, versions.notifications]);
+
+  const unreadCount = notifications.filter((notification) => !notification.is_read).length;
 
   return (
     <>
@@ -26,6 +34,10 @@ function NotificationsPage() {
         eyebrow="Signals Center"
         title="Notifications and segmented alerts"
         description="Filter personal, org-wide, and role-targeted notifications by urgency and unread state."
+        actions={[
+          <Chip key="unread" label={`${unreadCount} unread`} color={unreadCount ? "error" : "default"} />,
+          <Chip key="live" label={`Realtime ${connectionState}`} color={connectionState === "connected" ? "success" : "default"} variant="outlined" />,
+        ]}
       />
       <GlassPanel
         title="Notification center"
@@ -38,6 +50,13 @@ function NotificationsPage() {
               <MenuItem value="medium">Medium</MenuItem>
               <MenuItem value="high">High</MenuItem>
               <MenuItem value="critical">Critical</MenuItem>
+            </TextField>
+            <TextField select size="small" label="Type" value={filters.type} onChange={(event) => setFilters((previous) => ({ ...previous, type: event.target.value }))} sx={{ minWidth: 140 }}>
+              <MenuItem value="">All</MenuItem>
+              <MenuItem value="task">Task</MenuItem>
+              <MenuItem value="mention">Mention</MenuItem>
+              <MenuItem value="sla">SLA</MenuItem>
+              <MenuItem value="automation">Automation</MenuItem>
             </TextField>
             <TextField select size="small" label="Read state" value={filters.unread_only} onChange={(event) => setFilters((previous) => ({ ...previous, unread_only: event.target.value }))} sx={{ minWidth: 140 }}>
               <MenuItem value="false">All</MenuItem>

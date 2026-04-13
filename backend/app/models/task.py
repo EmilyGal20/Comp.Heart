@@ -1,6 +1,6 @@
 import json
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 
 from app.db.session import Base
@@ -17,6 +17,7 @@ class Task(Base):
     priority = Column(String(30), default="medium", nullable=False)
     tags_json = Column("tags", Text, default="[]", nullable=False)
     related_knowledge_ids_json = Column("related_knowledge_ids", Text, default="[]", nullable=False)
+    parent_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
     assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     due_at = Column(DateTime(timezone=True), nullable=True)
@@ -33,6 +34,9 @@ class Task(Base):
     comments = relationship("TaskComment", back_populates="task", cascade="all, delete-orphan")
     activities = relationship("TaskActivity", back_populates="task", cascade="all, delete-orphan")
     attachments = relationship("TaskAttachment", back_populates="task", cascade="all, delete-orphan")
+    watchers = relationship("TaskWatcher", back_populates="task", cascade="all, delete-orphan")
+    parent_task = relationship("Task", remote_side=[id], back_populates="subtasks")
+    subtasks = relationship("Task", back_populates="parent_task", cascade="all, delete-orphan")
 
     @property
     def tags(self):
@@ -99,3 +103,16 @@ class TaskAttachment(Base):
 
     task = relationship("Task", back_populates="attachments")
     uploader = relationship("User")
+
+
+class TaskWatcher(Base):
+    __tablename__ = "task_watchers"
+    __table_args__ = (UniqueConstraint("task_id", "user_id", name="uq_task_watcher"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    task = relationship("Task", back_populates="watchers")
+    user = relationship("User", back_populates="watched_tasks")

@@ -37,5 +37,6 @@ class User(Base):
     knowledge_items = relationship("KnowledgeItem", back_populates="author")
     assigned_tasks = relationship("Task", back_populates="assignee", foreign_keys="Task.assignee_id")
     created_tasks = relationship("Task", back_populates="creator", foreign_keys="Task.creator_id")
+    watched_tasks = relationship("TaskWatcher", back_populates="user")
     notifications = relationship("Notification", back_populates="user")
     conversations = relationship("AIConversation", back_populates="user")

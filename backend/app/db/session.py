@@ -39,9 +39,9 @@ def initialize_database():
             needs_reset = True
     if "tasks" in existing_tables:
         task_columns = {column["name"] for column in inspector.get_columns("tasks")}
-        if "tags" not in task_columns or "related_knowledge_ids" not in task_columns:
+        if "tags" not in task_columns or "related_knowledge_ids" not in task_columns or "parent_task_id" not in task_columns:
             needs_reset = True
-    if "task_activities" not in existing_tables or "task_attachments" not in existing_tables:
+    if "task_activities" not in existing_tables or "task_attachments" not in existing_tables or "task_watchers" not in existing_tables:
         needs_reset = True
     if needs_reset:
         Base.metadata.drop_all(bind=engine)

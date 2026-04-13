@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 
+from app.core.realtime import publish_event
 from app.models.notification import Notification
 
 
@@ -28,4 +29,18 @@ def create_notification(
     db.add(notification)
     db.commit()
     db.refresh(notification)
+    publish_event(
+        "notification_created",
+        {
+            "id": notification.id,
+            "title": notification.title,
+            "message": notification.message,
+            "type": notification.type,
+            "severity": notification.severity,
+            "is_org_wide": notification.is_org_wide,
+            "role_target": notification.role_target,
+        },
+        organization_id=organization_id,
+        user_id=user_id,
+    )
     return notification
