@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.schemas.knowledge import KnowledgeRead
 from app.schemas.user import UserRead
+from app.schemas.work_management import TaskApprovalRead, TaskMessageRead
 
 
 class TaskCommentRead(BaseModel):
@@ -73,6 +74,7 @@ class TaskCreate(BaseModel):
     related_knowledge_id: Optional[int] = None
     related_knowledge_ids: List[int] = []
     parent_task_id: Optional[int] = None
+    sprint_id: Optional[int] = None
 
 
 class TaskUpdate(BaseModel):
@@ -87,6 +89,7 @@ class TaskUpdate(BaseModel):
     related_knowledge_id: Optional[int] = None
     related_knowledge_ids: List[int] = []
     parent_task_id: Optional[int] = None
+    sprint_id: Optional[int] = None
 
 
 class TaskStatusUpdate(BaseModel):
@@ -111,6 +114,7 @@ class TaskRead(BaseModel):
     status: str
     priority: str
     tags: List[str] = []
+    backlog_order: int = 0
     due_at: Optional[datetime] = None
     sla_hours: int
     sla_status: str
@@ -118,6 +122,7 @@ class TaskRead(BaseModel):
     updated_at: datetime
     risk_score: int = 0
     parent_task_id: Optional[int] = None
+    sprint_id: Optional[int] = None
     assignee: Optional[UserRead] = None
     creator: Optional[UserRead] = None
     related_knowledge: Optional[KnowledgeRead] = None
@@ -129,6 +134,8 @@ class TaskRead(BaseModel):
     watchers: List[TaskWatcherRead] = []
     subtasks: List["TaskReadLight"] = []
     subtask_progress: dict = {}
+    approvals: List[TaskApprovalRead] = []
+    messages: List[TaskMessageRead] = []
 
     class Config:
         from_attributes = True

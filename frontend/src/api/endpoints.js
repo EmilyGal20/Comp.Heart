@@ -50,6 +50,30 @@ export const tasksApi = {
   createSubtask: (id, payload) => api.post(`/tasks/${id}/subtasks`, payload),
 };
 
+export const workApi = {
+  sprints: (params) => api.get("/work/sprints", { params }),
+  createSprint: (payload) => api.post("/work/sprints", payload),
+  updateSprintStatus: (id, payload) => api.patch(`/work/sprints/${id}/status`, payload),
+  backlog: (params) => api.get("/work/backlog", { params }),
+  reorderBacklog: (orderedIds, params) => api.patch("/work/backlog/reorder", orderedIds, { params }),
+  assignTaskSprint: (taskId, sprintId) => api.patch(`/work/tasks/${taskId}/sprint`, null, { params: { sprint_id: sprintId } }),
+  templates: (params) => api.get("/work/templates", { params }),
+  createTemplate: (payload) => api.post("/work/templates", payload),
+  createTaskFromTemplate: (id) => api.post(`/work/templates/${id}/tasks`),
+  recurring: (params) => api.get("/work/recurring", { params }),
+  createRecurring: (payload) => api.post("/work/recurring", payload),
+  runRecurring: () => api.post("/work/recurring/run"),
+  requestApproval: (taskId) => api.post("/work/approvals", { task_id: taskId }),
+  updateApproval: (id, status) => api.patch(`/work/approvals/${id}`, { status }),
+  messages: (taskId) => api.get(`/work/tasks/${taskId}/messages`),
+  sendMessage: (taskId, message) => api.post(`/work/tasks/${taskId}/messages`, { message }),
+  search: (params) => api.get("/work/search", { params }),
+  reports: (params) => api.get("/work/reports/summary", { params }),
+  exportTasks: (params) => api.get("/work/reports/tasks.csv", { params }),
+  auditLogs: (params) => api.get("/work/audit-logs", { params }),
+  permissionMatrix: () => api.get("/work/permissions/matrix"),
+};
+
 export const automationApi = {
   list: (params) => api.get("/automation", { params }),
   create: (payload) => api.post("/automation", payload),

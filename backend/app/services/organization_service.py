@@ -7,11 +7,14 @@ from app.models.notification import Notification
 from app.models.organization import Organization
 from app.models.task import Task
 from app.models.user import Team, User
+from app.services.audit_service import log_audit_event
 
 
 def create_organization(db: Session, payload):
     organization = Organization(**payload.model_dump())
     db.add(organization)
+    db.flush()
+    log_audit_event(db, organization_id=organization.id, user_id=None, action="organization_created", entity_type="Organization", entity_id=organization.id, details=organization.name)
     db.commit()
     db.refresh(organization)
     return organization
@@ -21,6 +24,7 @@ def update_organization(db: Session, organization: Organization, payload):
     for field, value in payload.model_dump().items():
         setattr(organization, field, value)
     db.add(organization)
+    log_audit_event(db, organization_id=organization.id, user_id=None, action="organization_updated", entity_type="Organization", entity_id=organization.id, details=organization.name)
     db.commit()
     db.refresh(organization)
     return organization
@@ -29,6 +33,7 @@ def update_organization(db: Session, organization: Organization, payload):
 def set_organization_status(db: Session, organization: Organization, is_active: bool):
     organization.is_active = is_active
     db.add(organization)
+    log_audit_event(db, organization_id=organization.id, user_id=None, action="organization_status_updated", entity_type="Organization", entity_id=organization.id, details=str(is_active))
     db.commit()
     db.refresh(organization)
     return organization

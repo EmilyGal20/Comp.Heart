@@ -9,6 +9,7 @@ from app.models.notification import Notification
 from app.models.task import Task, TaskActivity, TaskWatcher
 from app.models.user import Team, User
 from app.schemas.user import UserCreate, UserDashboard, UserRead, UserStatusUpdate, UserUpdate
+from app.services.audit_service import log_audit_event
 from app.utils.dependencies import get_current_user, require_min_role, require_same_org_or_super
 
 
@@ -78,6 +79,8 @@ def create_user(
         is_active=payload.is_active,
     )
     db.add(user)
+    db.flush()
+    log_audit_event(db, organization_id=organization_id, user_id=current_user.id, action="user_created", entity_type="User", entity_id=user.id, details=user.email)
     db.commit()
     db.refresh(user)
     created_user = (
@@ -111,6 +114,7 @@ def update_user(
     target_user.organization_id = target_organization_id
     target_user.is_active = payload.is_active
     db.add(target_user)
+    log_audit_event(db, organization_id=target_user.organization_id, user_id=current_user.id, action="user_updated", entity_type="User", entity_id=target_user.id, details=target_user.email)
     db.commit()
     db.refresh(target_user)
     publish_event("user_updated", {"id": target_user.id, "full_name": target_user.full_name, "role": target_user.role, "is_active": target_user.is_active, "message": f"{target_user.full_name} profile was updated"}, organization_id=target_user.organization_id, user_id=target_user.id)
@@ -128,6 +132,7 @@ def update_user_status(
     _ensure_user_management_scope(current_user, target_user.organization_id, target_user.role)
     target_user.is_active = payload.is_active
     db.add(target_user)
+    log_audit_event(db, organization_id=target_user.organization_id, user_id=current_user.id, action="user_status_updated", entity_type="User", entity_id=target_user.id, details=str(target_user.is_active))
     db.commit()
     db.refresh(target_user)
     publish_event("user_updated", {"id": target_user.id, "full_name": target_user.full_name, "is_active": target_user.is_active, "message": f"{target_user.full_name} was {'activated' if target_user.is_active else 'deactivated'}"}, organization_id=target_user.organization_id, user_id=target_user.id)

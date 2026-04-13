@@ -12,6 +12,9 @@ import LoginPage from "./pages/LoginPage";
 import MyWorkPage from "./pages/MyWorkPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import OrganizationsPage from "./pages/OrganizationsPage";
+import PermissionsPage from "./pages/PermissionsPage";
+import PlanningPage from "./pages/PlanningPage";
+import ReportsPage from "./pages/ReportsPage";
 import SettingsPage from "./pages/SettingsPage";
 import TasksPage from "./pages/TasksPage";
 
@@ -28,6 +31,7 @@ function App() {
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/my-work" element={<ProtectedRoute roles={["USER"]}><MyWorkPage /></ProtectedRoute>} />
                 <Route path="/organizations" element={<ProtectedRoute roles={["SUPER_ADMIN"]}><OrganizationsPage /></ProtectedRoute>} />
+                <Route path="/planning" element={<ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "MANAGER"]}><PlanningPage /></ProtectedRoute>} />
                 <Route path="/knowledge" element={<KnowledgePage />} />
                 <Route path="/tasks" element={<TasksPage />} />
                 <Route path="/automation" element={<ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "MANAGER"]}><AutomationPage /></ProtectedRoute>} />
@@ -35,6 +39,8 @@ function App() {
                 <Route path="/activity" element={<ActivityPage />} />
                 <Route path="/ai" element={<AIAssistantPage />} />
                 <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/reports" element={<ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "MANAGER"]}><ReportsPage /></ProtectedRoute>} />
+                <Route path="/permissions" element={<PermissionsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/control-center" element={<ProtectedRoute roles={["SUPER_ADMIN"]}><GlobalControlCenterPage /></ProtectedRoute>} />
                 <Route path="*" element={<Navigate to="/" replace />} />

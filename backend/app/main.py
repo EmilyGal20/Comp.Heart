@@ -10,9 +10,10 @@ from app.core.config import get_settings
 from app.core.realtime import realtime_manager
 from app.db.session import SessionLocal, initialize_database
 from app.models.user import User
-from app.routers import admin, ai, auth, automation, dashboard, knowledge, notifications, organizations, tasks, users
+from app.routers import admin, ai, auth, automation, dashboard, knowledge, notifications, organizations, tasks, users, work_management
 from app.seed.data import seed_database
 from app.services.automation_service import run_sla_scan
+from app.services.work_management_service import run_recurring_generation
 
 
 settings = get_settings()
@@ -37,6 +38,7 @@ def on_startup():
     try:
         seed_database(db)
         run_sla_scan(db)
+        run_recurring_generation(db)
     finally:
         db.close()
 
@@ -95,3 +97,4 @@ app.include_router(automation.router, prefix=settings.api_prefix)
 app.include_router(notifications.router, prefix=settings.api_prefix)
 app.include_router(ai.router, prefix=settings.api_prefix)
 app.include_router(dashboard.router, prefix=settings.api_prefix)
+app.include_router(work_management.router, prefix=settings.api_prefix)

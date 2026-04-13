@@ -11,6 +11,7 @@ from app.models.notification import Notification
 from app.models.organization import Organization
 from app.models.task import Task, TaskActivity, TaskAttachment, TaskComment, TaskWatcher
 from app.models.user import Team, User
+from app.models.work_management import AuditLog, RecurringTask, Sprint, TaskApproval, TaskMessage, TaskTemplate
 
 
 def seed_database(db: Session):
@@ -77,6 +78,13 @@ def seed_database(db: Session):
     db.add_all(tasks)
     db.flush()
     tasks[6].parent_task_id = tasks[0].id
+    tasks[0].backlog_order = 1
+    tasks[1].backlog_order = 2
+    tasks[2].backlog_order = 1
+    tasks[3].backlog_order = 2
+    tasks[4].backlog_order = 1
+    tasks[5].backlog_order = 2
+    tasks[6].backlog_order = 3
 
     comments = [
         TaskComment(task_id=tasks[0].id, author_id=users[1].id, content="Raised this in the morning operations review.\nNeed an owner for the communication follow-up."),
@@ -123,6 +131,42 @@ def seed_database(db: Session):
         )
     )
 
+    sprints = [
+        Sprint(organization_id=organizations[0].id, name="Northstar Incident Sprint", goal="Stabilize escalation and communications", start_date=now.date(), end_date=(now + timedelta(days=10)).date(), status="ACTIVE"),
+        Sprint(organization_id=organizations[1].id, name="Aether Release Readiness", goal="Remove blockers before deployment", start_date=now.date(), end_date=(now + timedelta(days=14)).date(), status="PLANNED"),
+    ]
+    db.add_all(sprints)
+    db.flush()
+    tasks[0].sprint_id = sprints[0].id
+    tasks[1].sprint_id = sprints[0].id
+    tasks[2].sprint_id = sprints[1].id
+
+    templates = [
+        TaskTemplate(organization_id=organizations[0].id, name="Incident Follow-up", title_template="Document incident follow-up actions", description_template="Capture root cause, timeline, owner, and stakeholder communications.", default_priority="medium", default_tags='["incident","follow-up"]', default_sla=24),
+        TaskTemplate(organization_id=organizations[1].id, name="Release Checklist Task", title_template="Validate release gate", description_template="Review release readiness gate and confirm owners.", default_priority="high", default_tags='["release","ops"]', default_sla=12),
+    ]
+    db.add_all(templates)
+    db.flush()
+
+    recurring = [
+        RecurringTask(organization_id=organizations[0].id, template_id=templates[0].id, frequency="weekly", next_run_at=now + timedelta(days=7), is_active=True),
+        RecurringTask(organization_id=organizations[1].id, template_id=templates[1].id, frequency="monthly", next_run_at=now + timedelta(days=30), is_active=True),
+    ]
+    db.add_all(recurring)
+
+    approvals = [
+        TaskApproval(task_id=tasks[1].id, requested_by=users[1].id, approved_by=users[2].id, status="APPROVED"),
+        TaskApproval(task_id=tasks[2].id, requested_by=users[4].id, approved_by=None, status="PENDING"),
+    ]
+    db.add_all(approvals)
+
+    messages = [
+        TaskMessage(task_id=tasks[0].id, user_id=users[1].id, message="Let’s keep the external update tight until we confirm the webhook fix."),
+        TaskMessage(task_id=tasks[0].id, user_id=users[3].id, message="Agreed. I’ll post the root cause notes in the next 20 minutes."),
+        TaskMessage(task_id=tasks[2].id, user_id=users[5].id, message="Telemetry gap is still the blocker for sign-off."),
+    ]
+    db.add_all(messages)
+
     rules = [
         AutomationRule(name="Northstar Overdue SLA Alert", description="Escalates overdue support tasks to the manager and notification center.", organization_id=organizations[0].id, trigger_type="task.updated", condition_json='{"sla_status": "breached"}', action_json='{"type": "notify", "audience": "managers", "severity": "critical"}', is_enabled=True),
         AutomationRule(name="Aether High Priority Release Ping", description="Notifies automation leadership when critical release tasks appear.", organization_id=organizations[1].id, trigger_type="task.created", condition_json='{"priority": "critical"}', action_json='{"type": "notify", "audience": "managers", "severity": "high"}', is_enabled=True),
@@ -140,6 +184,13 @@ def seed_database(db: Session):
         Notification(title="Harbor checklist refresh", message="Coordinator checklist refresh task is now live.", organization_id=organizations[2].id, type="knowledge", severity="low", user_id=users[9].id, role_target=None, is_org_wide=False, is_read=True),
     ]
     db.add_all(notifications)
+
+    audit_logs = [
+        AuditLog(organization_id=organizations[0].id, user_id=users[1].id, action="user_created", entity_type="User", entity_id=users[3].id, details="leo@northstar.local"),
+        AuditLog(organization_id=organizations[0].id, user_id=users[1].id, action="task_updated", entity_type="Task", entity_id=tasks[0].id, details="Stabilize patient billing escalation lane"),
+        AuditLog(organization_id=organizations[1].id, user_id=users[4].id, action="approval_requested", entity_type="TaskApproval", entity_id=2, details="Prepare release command center"),
+    ]
+    db.add_all(audit_logs)
 
     conversations = [
         AIConversation(title="How do we handle Northstar incidents?", organization_id=organizations[0].id, user_id=users[3].id),

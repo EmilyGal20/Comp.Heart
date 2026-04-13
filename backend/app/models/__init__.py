@@ -5,6 +5,7 @@ from app.models.notification import Notification
 from app.models.organization import Organization
 from app.models.task import Task, TaskActivity, TaskAttachment, TaskComment, TaskWatcher
 from app.models.user import Team, User
+from app.models.work_management import AuditLog, RecurringTask, Sprint, TaskApproval, TaskMessage, TaskTemplate
 
 __all__ = [
     "AIConversation",
@@ -19,6 +20,12 @@ __all__ = [
     "TaskAttachment",
     "TaskComment",
     "TaskWatcher",
+    "Sprint",
+    "TaskTemplate",
+    "RecurringTask",
+    "TaskApproval",
+    "TaskMessage",
+    "AuditLog",
     "Team",
     "User",
 ]

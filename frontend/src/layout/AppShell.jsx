@@ -1,17 +1,21 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Apartment,
   AutoAwesome,
+  GppGood,
   Hub,
   Insights,
+  KeyboardCommandKey,
   Logout,
   MenuBook,
   Notifications,
   People,
+  QueryStats,
   Settings,
   Shield,
   SpaceDashboard,
   TaskAlt,
+  Timeline,
   Tune,
   WorkOutline,
 } from "@mui/icons-material";
@@ -20,10 +24,13 @@ import {
   Avatar,
   Box,
   Chip,
+  Dialog,
+  DialogContent,
   Drawer,
   FormControl,
   IconButton,
   InputLabel,
+  InputAdornment,
   List,
   ListItemButton,
   ListItemIcon,
@@ -31,13 +38,16 @@ import {
   MenuItem,
   Select,
   Stack,
+  TextField,
   Toolbar,
   Typography,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import { NavLink, useLocation } from "react-router-dom";
+import SearchIcon from "@mui/icons-material/Search";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
+import { workApi } from "../api/endpoints";
 
 const drawerWidth = 292;
 
@@ -48,6 +58,7 @@ const navItems = [
   { label: "Control Center", path: "/control-center", icon: <Shield />, roles: ["SUPER_ADMIN"] },
   { label: "Organizations", path: "/organizations", icon: <Apartment />, roles: ["SUPER_ADMIN"] },
   { label: "My Work", path: "/my-work", icon: <WorkOutline />, roles: ["USER"] },
+  { label: "Planning", path: "/planning", icon: <Timeline />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
   { label: "Knowledge", path: "/knowledge", icon: <MenuBook />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Tasks", path: "/tasks", icon: <TaskAlt />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Automation", path: "/automation", icon: <Hub />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
@@ -55,12 +66,18 @@ const navItems = [
   { label: "Activity", path: "/activity", icon: <Insights />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "AI", path: "/ai", icon: <AutoAwesome />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Notifications", path: "/notifications", icon: <Notifications />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Reports", path: "/reports", icon: <QueryStats />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
+  { label: "Permissions", path: "/permissions", icon: <GppGood />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Settings", path: "/settings", icon: <Settings />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
 ];
 
 function AppShell({ children }) {
   const [open, setOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout, organizations, activeOrganizationId, scopedOrganization, setScopedOrganizationId } = useAuth();
   const { connectionState, versions } = useRealtime();
 
@@ -78,6 +95,40 @@ function AppShell({ children }) {
     () => organizations.map((entry) => entry.organization || entry),
     [organizations]
   );
+
+  useEffect(() => {
+    const handler = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  useEffect(() => {
+    if (!paletteOpen || !searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      workApi.search({
+        q: searchQuery,
+        organization_id: user.role === "SUPER_ADMIN" ? activeOrganizationId || undefined : undefined,
+      }).then((response) => setSearchResults(response.data));
+    }, 150);
+    return () => window.clearTimeout(timeout);
+  }, [activeOrganizationId, paletteOpen, searchQuery, user.role]);
+
+  const quickCommands = useMemo(() => {
+    const base = allowedNavItems.map((item) => ({ type: "command", title: `Open ${item.label}`, path: item.path, id: item.path }));
+    return [
+      ...base,
+      { type: "command", title: "Create task", path: "/tasks", id: "create-task" },
+      ...(user.role === "SUPER_ADMIN" ? [{ type: "command", title: "Open organizations", path: "/organizations", id: "orgs" }] : []),
+    ];
+  }, [allowedNavItems, user.role]);
 
   const drawerContent = (
     <Box sx={{ p: 2.5, height: "100%", background: "rgba(5, 9, 16, 0.92)", display: "flex", flexDirection: "column" }}>
@@ -171,6 +222,18 @@ function AppShell({ children }) {
             <Typography variant="h6">{pageTitle}</Typography>
           </Box>
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.25} alignItems={{ xs: "stretch", md: "center" }}>
+            <TextField
+              size="small"
+              placeholder="Search or jump..."
+              value={searchQuery}
+              onFocus={() => setPaletteOpen(true)}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              sx={{ minWidth: 230, display: { xs: "none", lg: "flex" } }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment>,
+                endAdornment: <InputAdornment position="end"><Chip size="small" icon={<KeyboardCommandKey />} label="K" /></InputAdornment>,
+              }}
+            />
             <Chip
               icon={<Apartment />}
               label={scopedOrganization ? scopedOrganization.slug : "all organizations"}
@@ -246,6 +309,35 @@ function AppShell({ children }) {
       >
         {children}
       </Box>
+      <Dialog open={paletteOpen} onClose={() => setPaletteOpen(false)} fullWidth maxWidth="sm">
+        <DialogContent sx={{ p: 2.5 }}>
+          <Stack spacing={1.5}>
+            <TextField
+              autoFocus
+              placeholder="Search tasks, users, docs, orgs, or commands"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
+            />
+            <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.55)" }}>Quick actions</Typography>
+            <List sx={{ display: "grid", gap: 0.5 }}>
+              {(searchResults.length ? searchResults : quickCommands).map((item) => (
+                <ListItemButton
+                  key={`${item.type}-${item.id}`}
+                  onClick={() => {
+                    setPaletteOpen(false);
+                    navigate(item.path);
+                    setSearchQuery("");
+                  }}
+                  sx={{ borderRadius: 3 }}
+                >
+                  <ListItemText primary={item.title} secondary={item.subtitle || item.type} />
+                </ListItemButton>
+              ))}
+            </List>
+          </Stack>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

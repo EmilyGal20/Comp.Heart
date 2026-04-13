@@ -14,8 +14,10 @@ from app.models.knowledge import KnowledgeItem
 from app.models.notification import Notification
 from app.models.task import Task, TaskActivity, TaskAttachment, TaskComment, TaskWatcher
 from app.models.user import User
+from app.models.work_management import TaskApproval, TaskMessage
 from app.native.risk_score import task_risk_score
 from app.services.notification_service import create_notification
+from app.services.audit_service import log_audit_event
 
 
 PRIORITY_WEIGHTS = {"low": 1, "medium": 2, "high": 4, "critical": 5}
@@ -136,6 +138,9 @@ def task_query(db: Session):
         joinedload(Task.attachments).joinedload(TaskAttachment.uploader).joinedload(User.team),
         joinedload(Task.watchers).joinedload(TaskWatcher.user).joinedload(User.team),
         joinedload(Task.subtasks).joinedload(Task.assignee).joinedload(User.team),
+        joinedload(Task.approvals).joinedload(TaskApproval.requester),
+        joinedload(Task.approvals).joinedload(TaskApproval.approver),
+        joinedload(Task.messages).joinedload(TaskMessage.user),
     )
 
 
@@ -361,6 +366,7 @@ def create_task(db: Session, payload, organization_id: int, actor: User):
         tags=payload.tags,
         related_knowledge_ids=payload.related_knowledge_ids,
         parent_task_id=payload.parent_task_id,
+        sprint_id=getattr(payload, "sprint_id", None),
         assignee_id=payload.assignee_id,
         creator_id=actor.id,
         due_at=payload.due_at,
@@ -380,6 +386,7 @@ def create_task(db: Session, payload, organization_id: int, actor: User):
         action_type="created",
         message=f"{actor.full_name} created the task",
     )
+    log_audit_event(db, organization_id=organization_id, user_id=actor.id, action="task_created", entity_type="Task", entity_id=task.id, details=task.title)
     db.commit()
     db.refresh(task)
     task = enrich_task(get_task_by_id(db, task.id), db)
@@ -450,6 +457,7 @@ def update_task(db: Session, *, task_id: int, payload, actor: User):
     task.sla_hours = payload.sla_hours
     task.related_knowledge_id = payload.related_knowledge_id
     task.parent_task_id = payload.parent_task_id
+    task.sprint_id = payload.sprint_id
     task.sla_status = compute_sla_status(task)
 
     change_map = {
@@ -464,6 +472,7 @@ def update_task(db: Session, *, task_id: int, payload, actor: User):
         "related_knowledge_ids": ", ".join(str(item) for item in task.related_knowledge_ids),
         "tags": ", ".join(task.tags),
         "parent_task_id": str(task.parent_task_id) if task.parent_task_id else None,
+        "sprint_id": str(task.sprint_id) if task.sprint_id else None,
     }
 
     for field_name, new_value in change_map.items():
@@ -486,6 +495,7 @@ def update_task(db: Session, *, task_id: int, payload, actor: User):
                 new_value=new_value,
                 message=message,
             )
+    log_audit_event(db, organization_id=task.organization_id, user_id=actor.id, action="task_updated", entity_type="Task", entity_id=task.id, details=task.title)
 
     db.commit()
     db.refresh(task)
@@ -519,6 +529,7 @@ def update_task_status(db: Session, task_id: int, status: str, actor: User):
         new_value=task.status,
         message=f"{actor.full_name} changed status to {task.status}",
     )
+    log_audit_event(db, organization_id=task.organization_id, user_id=actor.id, action="task_status_updated", entity_type="Task", entity_id=task.id, details=task.status)
     db.commit()
     db.refresh(task)
     notify_task_event(db, task=task, actor=actor, title="Task status updated", message=f"status is now {task.status}", user_id=task.assignee_id, role_target="MANAGER")
@@ -539,6 +550,9 @@ def add_task_comment(db: Session, *, task_id: int, actor: User, content: str):
         action_type="comment_added",
         message=f"{actor.full_name} added a comment",
     )
+    task = get_task_by_id(db, task_id)
+    if task:
+        log_audit_event(db, organization_id=task.organization_id, user_id=actor.id, action="task_comment_added", entity_type="Task", entity_id=task.id, details=task.title)
     db.commit()
     db.refresh(comment)
     task = get_task_by_id(db, task_id)
@@ -616,6 +630,7 @@ def add_task_attachment(db: Session, *, task: Task, actor: User, upload: UploadF
         action_type="attachment_added",
         message=f"{actor.full_name} uploaded {safe_name}",
     )
+    log_audit_event(db, organization_id=task.organization_id, user_id=actor.id, action="task_attachment_added", entity_type="Task", entity_id=task.id, details=safe_name)
     db.commit()
     db.refresh(attachment)
     notify_task_event(db, task=task, actor=actor, title="Task attachment added", message=f"received attachment {safe_name}", user_id=task.assignee_id)
