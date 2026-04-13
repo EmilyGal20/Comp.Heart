@@ -37,6 +37,12 @@ def initialize_database():
         user_columns = {column["name"] for column in inspector.get_columns("users")}
         if "organization_id" not in user_columns:
             needs_reset = True
+    if "tasks" in existing_tables:
+        task_columns = {column["name"] for column in inspector.get_columns("tasks")}
+        if "tags" not in task_columns or "related_knowledge_ids" not in task_columns:
+            needs_reset = True
+    if "task_activities" not in existing_tables or "task_attachments" not in existing_tables:
+        needs_reset = True
     if needs_reset:
         Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)

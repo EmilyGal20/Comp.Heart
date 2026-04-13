@@ -56,7 +56,7 @@ def get_dashboard_summary(db: Session, current_user, organization_id: int | None
         "total_users": user_count,
         "total_knowledge_items": knowledge_count,
         "total_tasks": task_count,
-        "open_tasks": len([task for task in tasks if task.status != "done"]),
+        "open_tasks": len([task for task in tasks if task.status != "DONE"]),
         "overdue_tasks": len([task for task in tasks if task.sla_status == "breached"]),
         "sla_warning_tasks": len([task for task in tasks if task.sla_status == "warning"]),
         "unread_notifications": unread,
@@ -73,10 +73,11 @@ def get_dashboard_summary(db: Session, current_user, organization_id: int | None
             for notification in recent_notifications
         ],
         "task_breakdown": {
-            "todo": len([task for task in tasks if task.status == "todo"]),
-            "in_progress": len([task for task in tasks if task.status == "in_progress"]),
-            "review": len([task for task in tasks if task.status == "review"]),
-            "done": len([task for task in tasks if task.status == "done"]),
+            "TODO": len([task for task in tasks if task.status == "TODO"]),
+            "IN_PROGRESS": len([task for task in tasks if task.status == "IN_PROGRESS"]),
+            "BLOCKED": len([task for task in tasks if task.status == "BLOCKED"]),
+            "REVIEW": len([task for task in tasks if task.status == "REVIEW"]),
+            "DONE": len([task for task in tasks if task.status == "DONE"]),
         },
         "focus_items": [
             {

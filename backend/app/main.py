@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import get_settings
 from app.db.session import SessionLocal, initialize_database
@@ -10,6 +13,8 @@ from app.services.automation_service import run_sla_scan
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="1.0.0")
+uploads_path = Path(settings.uploads_dir)
+uploads_path.mkdir(parents=True, exist_ok=True)
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,6 +41,7 @@ def root():
     return {"name": settings.app_name, "status": "healthy"}
 
 
+app.mount("/uploads", StaticFiles(directory=uploads_path), name="uploads")
 app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(organizations.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)

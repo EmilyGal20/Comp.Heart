@@ -52,7 +52,7 @@ def run_sla_scan(db: Session) -> list[dict]:
         due_at = task.due_at
         if due_at and due_at.tzinfo is None:
             due_at = due_at.replace(tzinfo=timezone.utc)
-        if task.status != "done" and due_at and due_at < now:
+        if task.status != "DONE" and due_at and due_at < now:
             duplicate = (
                 db.query(Notification)
                 .filter(
@@ -88,6 +88,6 @@ def get_recent_automation_events(db: Session) -> list[dict]:
         due_at = task.due_at
         if due_at and due_at.tzinfo is None:
             due_at = due_at.replace(tzinfo=timezone.utc)
-        if task.status != "done" and due_at and due_at < now:
+        if task.status != "DONE" and due_at and due_at < now:
             events.append({"type": "sla_breach", "organization_id": task.organization_id, "task_id": task.id, "task_title": task.title})
     return events

@@ -101,7 +101,7 @@ def my_dashboard(db: Session = Depends(get_db), current_user: User = Depends(get
     return {
         "profile": current_user,
         "summary": {
-            "my_open_tasks": len([task for task in my_tasks if task.status != "done"]),
+            "my_open_tasks": len([task for task in my_tasks if task.status != "DONE"]),
             "overdue_tasks": len([task for task in my_tasks if task.sla_status == "breached"]),
             "unread_notifications": len([item for item in notifications if not item.is_read]),
             "recommended_docs": len(knowledge),

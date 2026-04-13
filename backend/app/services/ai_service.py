@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.config import get_settings
 from app.models.ai import AIConversation, AIMessage
 from app.models.knowledge import KnowledgeItem
+from app.models.task import Task
 from app.models.user import User
 from app.services.knowledge_service import search_knowledge
 
@@ -92,3 +93,32 @@ def chat(db: Session, *, message: str, conversation_id: int | None, user: User):
     db.commit()
     db.refresh(conversation)
     return conversation, answer, references, used_openai
+
+
+def task_assist(*, task: Task, user: User, action: str) -> str:
+    normalized = action.lower().strip()
+    knowledge_hint = task.related_knowledge.title if task.related_knowledge else "No linked knowledge"
+    if normalized == "summarize task":
+        return (
+            f"Task summary for {user.organization.name}: {task.title}. "
+            f"Status: {task.status}. Priority: {task.priority}. "
+            f"Owner: {task.assignee.full_name if task.assignee else 'unassigned'}. "
+            f"Linked knowledge: {knowledge_hint}. "
+            f"Key objective: {task.description}"
+        )
+    if normalized == "suggest next steps":
+        return (
+            f"Suggested next steps: 1. Confirm the immediate owner and expected due date. "
+            f"2. Review linked knowledge ({knowledge_hint}) for process guidance. "
+            f"3. Resolve blockers preventing progress toward {task.status}. "
+            f"4. Post an update comment so the team sees momentum."
+        )
+    if normalized == "break into subtasks":
+        return (
+            "Suggested subtasks:\n"
+            "1. Clarify scope and success criteria.\n"
+            "2. Identify blockers, dependencies, and stakeholders.\n"
+            "3. Execute the highest-risk work item first.\n"
+            "4. Validate results and prepare a review/update note."
+        )
+    return "Unsupported AI task action."

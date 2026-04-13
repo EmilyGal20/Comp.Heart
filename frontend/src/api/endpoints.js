@@ -28,7 +28,20 @@ export const tasksApi = {
   list: (params) => api.get("/tasks", { params }),
   detail: (id) => api.get(`/tasks/${id}`),
   create: (payload) => api.post("/tasks", payload),
+  update: (id, payload) => api.put(`/tasks/${id}`, payload),
   updateStatus: (id, status) => api.patch(`/tasks/${id}/status`, { status }),
+  comments: (id) => api.get(`/tasks/${id}/comments`),
+  addComment: (id, payload) => api.post(`/tasks/${id}/comment`, payload),
+  activity: (id) => api.get(`/tasks/${id}/activity`),
+  attachments: (id) => api.get(`/tasks/${id}/attachments`),
+  uploadAttachment: (id, file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return api.post(`/tasks/${id}/attachments`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+  aiAssist: (id, action) => api.post(`/tasks/${id}/ai-assist`, { action }),
 };
 
 export const automationApi = {

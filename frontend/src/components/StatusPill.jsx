@@ -1,10 +1,11 @@
 import { Chip } from "@mui/material";
 
 const colorMap = {
-  todo: "default",
-  in_progress: "info",
-  review: "secondary",
-  done: "success",
+  TODO: "default",
+  IN_PROGRESS: "info",
+  BLOCKED: "warning",
+  REVIEW: "secondary",
+  DONE: "success",
   low: "default",
   medium: "info",
   high: "warning",

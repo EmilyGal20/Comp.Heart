@@ -14,6 +14,7 @@ CompHeart is a premium internal company operating system for multi-organization 
 - Better manager and regular-user experiences with personalized dashboards and more useful filtering.
 - Role-aware CompHeart AI responses based on organization context and user responsibility.
 - Segmented notifications for personal, org-wide, and role-targeted alerts.
+- Collaborative task workspace with comments, activity timeline, attachments, full task editing, and AI task helpers.
 
 ## Stack
 
@@ -97,6 +98,8 @@ compheart/
 - `KnowledgeItem`
 - `KnowledgeTag`
 - `Task`
+- `TaskActivity`
+- `TaskAttachment`
 - `TaskComment`
 - `AutomationRule`
 - `Notification`
@@ -182,6 +185,7 @@ The upgraded seed bootstraps a realistic multi-org environment:
 - 10 users across all role levels
 - organization-specific knowledge entries
 - org-distributed tasks with SLA variation
+- comments, activity history, and attachment-ready task records
 - org-specific automation rules
 - personal, org-wide, and role-targeted notifications
 - stored AI conversations
@@ -242,7 +246,14 @@ Tasks:
 - `GET /api/tasks`
 - `POST /api/tasks`
 - `GET /api/tasks/{id}`
+- `PUT /api/tasks/{id}`
 - `PATCH /api/tasks/{id}/status`
+- `POST /api/tasks/{id}/comment`
+- `GET /api/tasks/{id}/comments`
+- `GET /api/tasks/{id}/activity`
+- `POST /api/tasks/{id}/attachments`
+- `GET /api/tasks/{id}/attachments`
+- `POST /api/tasks/{id}/ai-assist`
 
 Automation:
 
@@ -278,6 +289,38 @@ The frontend now includes:
 - improved admin and manager workflows
 - personalized user dashboard
 - org-aware knowledge, tasks, notifications, and AI flows
+- rich task detail drawer with comments, timeline, attachments, editing, and AI actions
+
+## Task Collaboration Upgrade
+
+The task system now supports:
+
+- full task editing for allowed roles
+- comments with author and timestamp
+- automatic task activity timeline
+- attachments stored locally with download links
+- advanced filtering by search, status, priority, assignee, team, SLA state, and organization scope
+- AI task helper actions for summary, next steps, and subtasks
+
+### Task Permissions
+
+- `SUPER_ADMIN`: full control
+- `ADMIN`: full control inside organization
+- `MANAGER`: can edit and assign tasks inside visible team scope
+- `USER`: can edit tasks assigned to them, comment, attach files, and update their own task status
+
+### Task Activity Tracking
+
+Task activity is generated automatically for:
+
+- task creation
+- status changes
+- assignee changes
+- detail edits
+- comments
+- attachments
+
+Notifications are emitted for key task events such as assignment, updates, comments, status changes, and overdue pressure.
 
 ## Migration Note
 
@@ -293,6 +336,7 @@ The upgraded backend now enforces:
 - admin org-only management
 - manager team-focused workflows
 - user-scoped task and notification access
+- task edit/comment/attachment permissions by role and ownership
 
 ## Future Improvements
 
@@ -302,7 +346,3 @@ The upgraded backend now enforces:
 - vector search and stronger retrieval for CompHeart AI
 - websocket notifications and live dashboard updates
 - background automation execution and schedules
-=======
-# Comp.Heart
-
- cf22104d9a087c8f9b7fc0f88d03dfa340ad9540
