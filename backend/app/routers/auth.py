@@ -16,6 +16,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    if not payload.organization_slug:
+        payload.organization_slug = None
     user = (
         db.query(User)
         .options(joinedload(User.organization), joinedload(User.team).joinedload(Team.organization))

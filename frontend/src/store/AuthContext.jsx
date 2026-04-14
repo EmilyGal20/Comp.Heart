@@ -68,7 +68,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async ({ email, password, organization_slug }) => {
-    const response = await authApi.login({ email, password, organization_slug });
+    const response = await authApi.login({
+      email,
+      password,
+      ...(organization_slug ? { organization_slug } : {}),
+    });
     const nextToken = response.data.access_token;
     const nextUser = response.data.user;
     const scopedOrg = nextUser.role === "SUPER_ADMIN" ? null : nextUser.organization_id;

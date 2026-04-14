@@ -101,12 +101,24 @@ def root():
     return {"name": settings.app_name, "status": "healthy"}
 
 
+# @app.exception_handler(RequestValidationError)
+# async def validation_exception_handler(request: Request, exc: RequestValidationError):
+#     logger.warning("Validation error on %s %s", request.method, request.url.path)
+#     return JSONResponse(status_code=422, content={"detail": "Validation error", "errors": exc.errors()})
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.warning("Validation error on %s %s", request.method, request.url.path)
-    return JSONResponse(status_code=422, content={"detail": "Validation error", "errors": exc.errors()})
-
-
+    logger.warning(
+        "Validation error on %s %s: %s",
+        request.method,
+        request.url.path,
+        exc.errors(),
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"detail": "Validation error", "errors": exc.errors()},
+    )
+    
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code >= 500:
