@@ -19,6 +19,12 @@ from app.routers import announcements, approvals, contacts, meetings, onboarding
 from app.seed.data import seed_database
 from app.services.automation_service import run_sla_scan
 from app.services.work_management_service import run_recurring_generation
+# from fastapi.middleware.cors import CORSMiddleware
+
+# origins = [
+#     "http://localhost:8069",
+#     "http://127.0.0.1:8069",
+# ]
 
 
 settings = get_settings()
@@ -28,14 +34,28 @@ app = FastAPI(title=settings.app_name, version="1.0.0")
 uploads_path = Path(settings.uploads_dir)
 uploads_path.mkdir(parents=True, exist_ok=True)
 
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[settings.allowed_origin, origins],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+allowed_origins = [
+    "http://localhost:8069",
+    "http://127.0.0.1:8069",
+]
+
+if settings.allowed_origin and settings.allowed_origin not in allowed_origins:
+    allowed_origins.append(settings.allowed_origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.allowed_origin],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 async def recurring_scheduler():
     while True:

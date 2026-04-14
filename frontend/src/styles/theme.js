@@ -49,8 +49,8 @@ export function buildTheme(mode = "dark") {
   return createTheme({
     palette,
     shape: {
-      borderRadius: 12,
-    },
+  borderRadius: 8,
+},
     spacing: 8,
     typography: {
       fontFamily: `"Segoe UI Variable", "Segoe UI", "Inter", sans-serif`,
@@ -82,9 +82,9 @@ export function buildTheme(mode = "dark") {
         },
       },
       MuiCard: {
-        styleOverrides: {
-          root: {
-            borderRadius: 14,
+  styleOverrides: {
+    root: {
+      borderRadius: 10,
             background: isLight
               ? "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.94))"
               : "linear-gradient(180deg, rgba(13,20,35,0.96), rgba(10,15,25,0.9))",
@@ -95,9 +95,9 @@ export function buildTheme(mode = "dark") {
         },
       },
       MuiButton: {
-        styleOverrides: {
-          root: {
-            borderRadius: 10,
+  styleOverrides: {
+    root: {
+      borderRadius: 8,
             textTransform: "none",
             paddingInline: 16,
             minHeight: 40,
@@ -113,17 +113,17 @@ export function buildTheme(mode = "dark") {
         },
       },
       MuiOutlinedInput: {
-        styleOverrides: {
-          root: {
-            borderRadius: 10,
+  styleOverrides: {
+    root: {
+      borderRadius: 8,
             backgroundColor: isLight ? alpha("#ffffff", 0.7) : alpha("#0f172a", 0.24),
           },
         },
       },
       MuiChip: {
-        styleOverrides: {
-          root: {
-            borderRadius: 10,
+  styleOverrides: {
+    root: {
+      borderRadius: 8,
             height: 28,
           },
         },

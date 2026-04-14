@@ -46,9 +46,12 @@ export function RealtimeProvider({ children }) {
       if (socketRef.current) {
         const socket = socketRef.current;
         socketRef.current = null;
-        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-          socket.close(1000, "client_reset");
-        }
+        // if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+        //   socket.close(1000, "client_reset");
+        // }
+        if (socket.readyState === WebSocket.OPEN) {
+  socket.close(1000, "client_reset");
+}
       }
     };
 

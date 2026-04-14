@@ -24,6 +24,16 @@ APPROVAL_STATUSES = {"PENDING", "APPROVED", "REJECTED"}
 RECURRING_FREQUENCIES = {"daily": 1, "weekly": 7, "monthly": 30}
 
 
+# def _serialize_light_task(task: Task):
+#     return {
+#         "id": task.id,
+#         "title": task.title,
+#         "status": task.status,
+#         "priority": task.priority,
+#         "due_at": task.due_at,
+#         "assignee": task.assignee,
+#     }
+
 def _serialize_light_task(task: Task):
     return {
         "id": task.id,
@@ -31,9 +41,36 @@ def _serialize_light_task(task: Task):
         "status": task.status,
         "priority": task.priority,
         "due_at": task.due_at,
-        "assignee": task.assignee,
+        "assignee": (
+            {
+                "id": task.assignee.id,
+                "full_name": task.assignee.full_name,
+                "email": task.assignee.email,
+                "role": task.assignee.role,
+            }
+            if task.assignee
+            else None
+        ),
     }
 
+
+# def list_sprints(db: Session, organization_id: int):
+#     sprints = (
+#         db.query(Sprint)
+#         .options(joinedload(Sprint.tasks).joinedload(Task.assignee))
+#         .filter(Sprint.organization_id == organization_id)
+#         .order_by(Sprint.created_at.desc())
+#         .all()
+#     )
+#     for sprint in sprints:
+#         statuses = [task.status for task in sprint.tasks]
+#         sprint.progress = {
+#             "total": len(statuses),
+#             "done": len([status for status in statuses if status == "DONE"]),
+#             "open": len([status for status in statuses if status != "DONE"]),
+#         }
+#         sprint.tasks = [_serialize_light_task(task) for task in sprint.tasks]
+#     return sprints
 
 def list_sprints(db: Session, organization_id: int):
     sprints = (
@@ -43,15 +80,33 @@ def list_sprints(db: Session, organization_id: int):
         .order_by(Sprint.created_at.desc())
         .all()
     )
+
+    serialized = []
+
     for sprint in sprints:
         statuses = [task.status for task in sprint.tasks]
-        sprint.progress = {
+        progress = {
             "total": len(statuses),
             "done": len([status for status in statuses if status == "DONE"]),
             "open": len([status for status in statuses if status != "DONE"]),
         }
-        sprint.tasks = [_serialize_light_task(task) for task in sprint.tasks]
-    return sprints
+
+        serialized.append(
+            {
+                "id": sprint.id,
+                "organization_id": sprint.organization_id,
+                "name": sprint.name,
+                "goal": sprint.goal,
+                "start_date": sprint.start_date,
+                "end_date": sprint.end_date,
+                "status": sprint.status,
+                "created_at": sprint.created_at,
+                "progress": progress,
+                "tasks": [_serialize_light_task(task) for task in sprint.tasks],
+            }
+        )
+
+    return serialized
 
 
 def create_sprint(db: Session, *, organization_id: int, payload, actor: User):
@@ -117,9 +172,25 @@ def reorder_backlog(db: Session, *, organization_id: int, ordered_ids: list[int]
     publish_event("backlog_updated", {"ordered_ids": ordered_ids, "message": f"{actor.full_name} reordered the backlog"}, organization_id=organization_id)
 
 
-def list_templates(db: Session, organization_id: int):
-    return db.query(TaskTemplate).filter(TaskTemplate.organization_id == organization_id).order_by(TaskTemplate.name.asc()).all()
+# def list_templates(db: Session, organization_id: int):
+#     return db.query(TaskTemplate).filter(TaskTemplate.organization_id == organization_id).order_by(TaskTemplate.name.asc()).all()
 
+def list_templates(db: Session, organization_id: int):
+    templates = (
+        db.query(TaskTemplate)
+        .filter(TaskTemplate.organization_id == organization_id)
+        .order_by(TaskTemplate.name.asc())
+        .all()
+    )
+
+    for template in templates:
+        if isinstance(template.default_tags, str):
+            try:
+                template.default_tags = json.loads(template.default_tags)
+            except json.JSONDecodeError:
+                template.default_tags = []
+
+    return templates
 
 def create_template(db: Session, *, organization_id: int, payload, actor: User):
     template = TaskTemplate(
@@ -128,7 +199,8 @@ def create_template(db: Session, *, organization_id: int, payload, actor: User):
         title_template=payload.title_template,
         description_template=payload.description_template,
         default_priority=payload.default_priority,
-        default_tags=json.dumps(payload.default_tags),
+        # default_tags=json.dumps(payload.default_tags),
+        default_tags=json.dumps(payload.default_tags or []),
         default_sla=payload.default_sla,
     )
     db.add(template)
@@ -158,14 +230,32 @@ def create_task_from_template(db: Session, *, template: TaskTemplate, actor: Use
     return create_task(db, payload, template.organization_id, actor)
 
 
+# def list_recurring_tasks(db: Session, organization_id: int):
+#     return (
+#         db.query(RecurringTask)
+#         .options(joinedload(RecurringTask.template))
+#         .filter(RecurringTask.organization_id == organization_id)
+#         .order_by(RecurringTask.created_at.desc())
+#         .all()
+#     )
+
 def list_recurring_tasks(db: Session, organization_id: int):
-    return (
+    recurring_items = (
         db.query(RecurringTask)
         .options(joinedload(RecurringTask.template))
         .filter(RecurringTask.organization_id == organization_id)
         .order_by(RecurringTask.created_at.desc())
         .all()
     )
+
+    for item in recurring_items:
+        if item.template and isinstance(item.template.default_tags, str):
+            try:
+                item.template.default_tags = json.loads(item.template.default_tags)
+            except json.JSONDecodeError:
+                item.template.default_tags = []
+
+    return recurring_items
 
 
 def create_recurring_task(db: Session, *, organization_id: int, payload, actor: User):
