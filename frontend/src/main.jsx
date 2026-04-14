@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import App from "./App";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthProvider } from "./store/AuthContext";
 import { RealtimeProvider } from "./store/RealtimeContext";
 import theme from "./styles/theme";
@@ -15,7 +16,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <RealtimeProvider>
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            <App />
+            <ErrorBoundary>
+              <App />
+            </ErrorBoundary>
           </ThemeProvider>
         </RealtimeProvider>
       </AuthProvider>

@@ -11,21 +11,26 @@ from app.schemas.productivity import KnowledgeVersionRead
 from app.services.knowledge_service import create_knowledge_item, search_knowledge
 from app.services.productivity_service import list_knowledge_versions, restore_knowledge_version, update_knowledge_item
 from app.utils.dependencies import get_current_user, require_min_role, resolve_org_scope
+from app.utils.pagination import paginate_list
 
 
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
 
 
-@router.get("", response_model=list[KnowledgeRead])
+@router.get("")
 def list_knowledge(
     search: str | None = Query(default=None),
     category: str | None = Query(default=None),
     organization_id: int | None = Query(default=None),
+    paginated: bool = Query(default=False),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     scoped_org_id = resolve_org_scope(organization_id, current_user, db)
-    return search_knowledge(db, organization_id=scoped_org_id, query=search, category=category)
+    items = search_knowledge(db, organization_id=scoped_org_id, query=search, category=category)
+    return paginate_list(items, page=page, page_size=page_size) if paginated else items
 
 
 @router.get("/search")

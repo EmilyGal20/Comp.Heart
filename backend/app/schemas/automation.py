@@ -1,18 +1,41 @@
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+ALLOWED_AUTOMATION_TRIGGERS = {
+    "task.created",
+    "task.updated",
+    "task.overdue",
+    "knowledge.updated",
+    "approval.updated",
+    "recurring.generated",
+}
 
 
 class AutomationRuleCreate(BaseModel):
-    name: str
-    description: str
+    name: str = Field(min_length=3, max_length=120)
+    description: str = Field(min_length=3, max_length=1200)
     organization_id: Optional[int] = None
-    trigger_type: str
-    condition_json: Dict[str, Any]
-    action_json: Dict[str, Any]
-    scope_json: Dict[str, Any] = {}
+    trigger_type: str = Field(min_length=3, max_length=80)
+    condition_json: Dict[str, Any] = Field(default_factory=dict)
+    action_json: Dict[str, Any] = Field(default_factory=dict)
+    scope_json: Dict[str, Any] = Field(default_factory=dict)
     is_enabled: bool = True
+
+    @field_validator("trigger_type")
+    @classmethod
+    def validate_trigger_type(cls, value: str):
+        if value not in ALLOWED_AUTOMATION_TRIGGERS:
+            raise ValueError("Unsupported automation trigger")
+        return value
+
+    @model_validator(mode="after")
+    def validate_structure(self):
+        if not self.action_json:
+            raise ValueError("action_json must include at least one action")
+        return self
 
 
 class AutomationRuleUpdate(AutomationRuleCreate):
@@ -37,8 +60,15 @@ class AutomationRuleRead(BaseModel):
 
 
 class AutomationEvaluateRequest(BaseModel):
-    event_type: str
-    payload: Dict[str, Any]
+    event_type: Literal[
+        "task.created",
+        "task.updated",
+        "task.overdue",
+        "knowledge.updated",
+        "approval.updated",
+        "recurring.generated",
+    ]
+    payload: Dict[str, Any] = Field(default_factory=dict)
 
 
 class AutomationEvaluateResponse(BaseModel):

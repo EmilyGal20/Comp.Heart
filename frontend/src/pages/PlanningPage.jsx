@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { AutoAwesome, PlayArrow } from "@mui/icons-material";
-import { Alert, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, LinearProgress, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Divider, LinearProgress, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { aiApi, tasksApi, workApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
 import StatusPill from "../components/StatusPill";

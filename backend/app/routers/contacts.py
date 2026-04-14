@@ -5,14 +5,18 @@ from app.db.session import get_db
 from app.models.user import Team, User
 from app.schemas.user import UserRead
 from app.utils.dependencies import get_current_user
+from app.utils.pagination import paginate_query
 
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 
-@router.get("", response_model=list[UserRead])
+@router.get("")
 def get_contacts(
     search: str | None = Query(default=None),
+    paginated: bool = Query(default=False),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=18, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -22,4 +26,5 @@ def get_contacts(
     if search:
         like = f"%{search.lower()}%"
         query = query.filter((User.full_name.ilike(like)) | (User.email.ilike(like)) | (User.title.ilike(like)))
-    return query.order_by(User.full_name.asc()).all()
+    ordered = query.order_by(User.full_name.asc())
+    return paginate_query(ordered, page=page, page_size=page_size) if paginated else ordered.all()

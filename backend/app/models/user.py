@@ -10,7 +10,7 @@ class Team(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(120), nullable=False)
     description = Column(Text, nullable=True)
-    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     organization = relationship("Organization", back_populates="teams")
@@ -28,10 +28,10 @@ class User(Base):
     title = Column(String(120), nullable=False)
     organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=False)
     responsibilities = Column(Text, default="", nullable=False)
-    team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=True, index=True)
     password = Column(String(255), default="compheart", nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
 
     organization = relationship("Organization", back_populates="users")
     team = relationship("Team", back_populates="users")

@@ -9,7 +9,6 @@ import {
   DialogContent,
   DialogTitle,
   Drawer,
-  Grid,
   MenuItem,
   Stack,
   Table,
@@ -22,8 +21,11 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { organizationsApi, usersApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
+import PageState from "../components/PageState";
+import PaginationControls from "../components/PaginationControls";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
 
@@ -49,6 +51,9 @@ function EmployeesPage() {
   const [editingUser, setEditingUser] = useState(null);
   const [filters, setFilters] = useState({ role: "", search: "", team_id: "" });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState(null);
 
   const currentOrgId = activeOrganizationId || user.organization_id;
   const roleOptions = useMemo(() => {
@@ -62,28 +67,42 @@ function EmployeesPage() {
     if (user.role === "SUPER_ADMIN" && !activeOrganizationId) {
       setUsers([]);
       setTeams([]);
+      setMeta(null);
+      setLoading(false);
       return;
     }
-    const [usersResponse, teamsResponse] = await Promise.all([
-      usersApi.list({
-        organization_id: currentOrgId,
-        role: filters.role || undefined,
-        team_id: filters.team_id || undefined,
-      }),
-      organizationsApi.teams(currentOrgId),
-    ]);
-    const filteredUsers = usersResponse.data.filter((entry) => {
-      if (!filters.search) return true;
-      const haystack = `${entry.full_name} ${entry.email} ${entry.title}`.toLowerCase();
-      return haystack.includes(filters.search.toLowerCase());
-    });
-    setUsers(filteredUsers);
-    setTeams(teamsResponse.data);
+    setLoading(true);
+    try {
+      const [usersResponse, teamsResponse] = await Promise.all([
+        usersApi.list({
+          paginated: true,
+          page,
+          page_size: 16,
+          organization_id: currentOrgId,
+          role: filters.role || undefined,
+          team_id: filters.team_id || undefined,
+          search: filters.search || undefined,
+        }),
+        organizationsApi.teams(currentOrgId),
+      ]);
+      setUsers(usersResponse.data.items || []);
+      setMeta(usersResponse.data.meta || null);
+      setTeams(teamsResponse.data || []);
+      setError("");
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "Unable to load users");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     load();
-  }, [activeOrganizationId, currentOrgId, filters.role, filters.search, filters.team_id, versions.users]);
+  }, [activeOrganizationId, currentOrgId, filters.role, filters.search, filters.team_id, versions.users, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [currentOrgId, filters.role, filters.search, filters.team_id]);
 
   const openCreate = () => {
     setEditingUser(null);
@@ -170,44 +189,57 @@ function EmployeesPage() {
                   </Stack>
                 }
               >
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>User</TableCell>
-                      <TableCell>Role</TableCell>
-                      <TableCell>Team</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Org</TableCell>
-                      <TableCell align="right">Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {users.map((entry) => (
-                      <TableRow key={entry.id} hover onClick={() => setSelected(entry)} sx={{ cursor: "pointer" }}>
-                        <TableCell>
-                          <Stack direction="row" spacing={1.5} alignItems="center">
-                            <Avatar sx={{ bgcolor: "secondary.main" }}>
-                              {entry.full_name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
-                            </Avatar>
-                            <div>
-                              <Typography variant="subtitle2">{entry.full_name}</Typography>
-                              <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>{entry.email}</Typography>
-                            </div>
-                          </Stack>
-                        </TableCell>
-                        <TableCell><Chip size="small" label={entry.role} color={entry.role === "ADMIN" || entry.role === "SUPER_ADMIN" ? "secondary" : "primary"} /></TableCell>
-                        <TableCell>{entry.team?.name || "Unassigned"}</TableCell>
-                        <TableCell><Chip size="small" label={entry.is_active ? "Active" : "Inactive"} color={entry.is_active ? "success" : "default"} /></TableCell>
-                        <TableCell>{entry.organization?.name}</TableCell>
-                        <TableCell align="right">
-                          <Button size="small" onClick={(event) => { event.stopPropagation(); navigate(`/people/${entry.id}`); }}>Profile</Button>
-                          {canManage ? <Button size="small" onClick={(event) => { event.stopPropagation(); openEdit(entry); }}>Edit</Button> : null}
-                          {canManage ? <Button size="small" color={entry.is_active ? "warning" : "success"} onClick={(event) => { event.stopPropagation(); toggleStatus(entry); }}>{entry.is_active ? "Deactivate" : "Activate"}</Button> : null}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <PageState
+                  loading={loading}
+                  error={error}
+                  empty={!loading && !error && users.length === 0}
+                  title="No people match these filters"
+                  description="Try broadening the role, team, or search filter."
+                  onRetry={load}
+                />
+                {!loading && !error && users.length > 0 ? (
+                  <>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>User</TableCell>
+                          <TableCell>Role</TableCell>
+                          <TableCell>Team</TableCell>
+                          <TableCell>Status</TableCell>
+                          <TableCell>Org</TableCell>
+                          <TableCell align="right">Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {users.map((entry) => (
+                          <TableRow key={entry.id} hover onClick={() => setSelected(entry)} sx={{ cursor: "pointer" }}>
+                            <TableCell>
+                              <Stack direction="row" spacing={1.5} alignItems="center">
+                                <Avatar sx={{ bgcolor: "secondary.main" }}>
+                                  {entry.full_name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
+                                </Avatar>
+                                <div>
+                                  <Typography variant="subtitle2">{entry.full_name}</Typography>
+                                  <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>{entry.email}</Typography>
+                                </div>
+                              </Stack>
+                            </TableCell>
+                            <TableCell><Chip size="small" label={entry.role} color={entry.role === "ADMIN" || entry.role === "SUPER_ADMIN" ? "secondary" : "primary"} /></TableCell>
+                            <TableCell>{entry.team?.name || "Unassigned"}</TableCell>
+                            <TableCell><Chip size="small" label={entry.is_active ? "Active" : "Inactive"} color={entry.is_active ? "success" : "default"} /></TableCell>
+                            <TableCell>{entry.organization?.name}</TableCell>
+                            <TableCell align="right">
+                              <Button size="small" onClick={(event) => { event.stopPropagation(); navigate(`/people/${entry.id}`); }}>Profile</Button>
+                              {canManage ? <Button size="small" onClick={(event) => { event.stopPropagation(); openEdit(entry); }}>Edit</Button> : null}
+                              {canManage ? <Button size="small" color={entry.is_active ? "warning" : "success"} onClick={(event) => { event.stopPropagation(); toggleStatus(entry); }}>{entry.is_active ? "Deactivate" : "Activate"}</Button> : null}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    <PaginationControls meta={meta} page={page} onChange={setPage} />
+                  </>
+                ) : null}
               </GlassPanel>
             </Grid>
           </>

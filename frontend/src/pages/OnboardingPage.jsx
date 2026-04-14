@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, Chip, Grid, LinearProgress, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, LinearProgress, Stack, Typography } from "@mui/material";
 import { onboardingApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
 import { useRealtime } from "../store/RealtimeContext";

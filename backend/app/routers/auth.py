@@ -8,7 +8,7 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest, LoginResponse
 from app.schemas.user import UserRead
 from app.utils.dependencies import get_current_user
-from app.utils.security import create_access_token
+from app.utils.security import create_access_token, verify_password
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -22,7 +22,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         .filter(User.email == payload.email)
         .first()
     )
-    if not user or user.password != payload.password:
+    if not user or not verify_password(payload.password, user.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="User account is inactive")

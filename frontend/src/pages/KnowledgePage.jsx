@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, Chip, Drawer, Grid, InputAdornment, List, ListItemButton, ListItemText, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Chip, Drawer, InputAdornment, List, ListItemButton, ListItemText, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import { knowledgeApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
+import PageState from "../components/PageState";
+import PaginationControls from "../components/PaginationControls";
 import PageHeader from "../components/PageHeader";
 import { useAuth } from "../store/AuthContext";
 
@@ -12,13 +15,27 @@ function KnowledgePage() {
   const [selected, setSelected] = useState(null);
   const [versions, setVersions] = useState([]);
   const [filters, setFilters] = useState({ search: "", category: "" });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [meta, setMeta] = useState(null);
+  const [page, setPage] = useState(1);
 
   const load = async () => {
-    const response = await knowledgeApi.list({ ...filters, organization_id: activeOrganizationId || undefined });
-    setItems(response.data);
+    setLoading(true);
+    try {
+      const response = await knowledgeApi.list({ ...filters, paginated: true, page, page_size: 16, organization_id: activeOrganizationId || undefined });
+      setItems(response.data.items || []);
+      setMeta(response.data.meta || null);
+      setError("");
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "Unable to load knowledge");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { load(); }, [activeOrganizationId, filters.search, filters.category]);
+  useEffect(() => { load(); }, [activeOrganizationId, filters.search, filters.category, page]);
+  useEffect(() => { setPage(1); }, [activeOrganizationId, filters.search, filters.category]);
 
   const categories = useMemo(() => [...new Set(items.map((item) => item.category))], [items]);
 
@@ -31,6 +48,7 @@ function KnowledgePage() {
   return (
     <>
       <PageHeader eyebrow="Knowledge Graph" title={user.role === "USER" ? "Recommended knowledge and company docs" : "Searchable company intelligence"} description="SOPs, runbooks, FAQs, and versioned operating knowledge with history and restore support." />
+      {error ? <Box sx={{ mb: 2.5 }}><PageState error={error} onRetry={load} /></Box> : null}
       <Grid container spacing={3}>
         <Grid item xs={12} lg={4}>
           <GlassPanel title="Search and scope" subtitle="Filter by category and find the right document quickly" minHeight={240}>
@@ -43,6 +61,14 @@ function KnowledgePage() {
         </Grid>
         <Grid item xs={12} lg={8}>
           <GlassPanel title="Document library" subtitle={`${items.length} version-aware knowledge assets in scope`} minHeight={520}>
+            <PageState
+              loading={loading}
+              error={error}
+              empty={!loading && !error && items.length === 0}
+              title="No knowledge items matched this scope"
+              description="Try a different category or a broader search phrase."
+              onRetry={load}
+            />
             <List sx={{ p: 0 }}>
               {items.map((item) => (
                 <ListItemButton key={item.id} onClick={() => openItem(item)} sx={{ mb: 1, borderRadius: 3.5, alignItems: "flex-start", bgcolor: "rgba(255,255,255,0.025)" }}>
@@ -50,6 +76,7 @@ function KnowledgePage() {
                 </ListItemButton>
               ))}
             </List>
+            <PaginationControls meta={meta} onChange={setPage} disabled={loading} />
           </GlassPanel>
         </Grid>
       </Grid>

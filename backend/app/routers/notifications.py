@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.session import get_db
 from app.models.notification import Notification
 from app.models.user import User
-from app.schemas.notification import NotificationRead
+from app.schemas.notification import NotificationBulkReadRequest, NotificationRead
+from app.utils.pagination import paginate_query
 from app.utils.dependencies import get_current_user
 
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 
-@router.get("", response_model=list[NotificationRead])
+@router.get("")
 def list_notifications(
     severity: str | None = Query(default=None),
     type: str | None = Query(default=None),
@@ -19,6 +20,9 @@ def list_notifications(
     organization_id: int | None = Query(default=None),
     unread_only: bool = Query(default=False),
     search: str | None = Query(default=None),
+    paginated: bool = Query(default=False),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -44,7 +48,8 @@ def list_notifications(
     if search:
         pattern = f"%{search.lower()}%"
         query = query.filter((Notification.title.ilike(pattern)) | (Notification.message.ilike(pattern)))
-    return query.order_by(Notification.created_at.desc()).all()
+    ordered = query.order_by(Notification.created_at.desc())
+    return paginate_query(ordered, page=page, page_size=page_size) if paginated else ordered.all()
 
 
 @router.patch("/{notification_id}/read", response_model=NotificationRead)
@@ -86,11 +91,11 @@ def mark_all_notifications_as_read(
 
 @router.patch("/bulk-read")
 def bulk_mark_notifications_as_read(
-    notification_ids: list[int],
+    payload: NotificationBulkReadRequest = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    items = db.query(Notification).filter(Notification.id.in_(notification_ids)).all()
+    items = db.query(Notification).filter(Notification.id.in_(payload.ids)).all()
     updated = 0
     for notification in items:
         if current_user.role != "SUPER_ADMIN" and notification.organization_id != current_user.organization_id:

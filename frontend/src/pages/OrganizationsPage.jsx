@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { organizationsApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
+import PageState from "../components/PageState";
 import { useRealtime } from "../store/RealtimeContext";
 
 const emptyForm = {
@@ -21,10 +23,19 @@ function OrganizationsPage() {
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    const response = await organizationsApi.list();
-    setOrganizations(response.data);
+    setLoading(true);
+    try {
+      const response = await organizationsApi.list();
+      setOrganizations(response.data || []);
+      setError("");
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "Unable to load organizations");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -83,12 +94,22 @@ function OrganizationsPage() {
         description="Create, rename, activate, and inspect organizations with premium global visibility into company health and activity."
         actions={[<Button key="create" variant="contained" onClick={openCreate}>Create organization</Button>]}
       />
-      {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
+      {error && !loading ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       <Grid container spacing={2.5}>
         <Grid item xs={12} md={4}><MetricCard label="Organizations" value={organizations.length} helper="Tenant workspaces" accent="rgba(155,124,255,0.25)" /></Grid>
         <Grid item xs={12} md={4}><MetricCard label="Users" value={totals.users} helper="People across all orgs" accent="rgba(61,200,255,0.25)" /></Grid>
         <Grid item xs={12} md={4}><MetricCard label="Overdue tasks" value={totals.overdue} helper="Cross-org risk pressure" accent="rgba(255,107,122,0.23)" /></Grid>
-        {organizations.map((entry) => (
+        <Grid item xs={12}>
+          <PageState
+            loading={loading}
+            error={error}
+            empty={!loading && !error && organizations.length === 0}
+            title="No organizations found"
+            description="Create the first organization to start managing platform tenants."
+            onRetry={load}
+          />
+        </Grid>
+        {!loading && !error ? organizations.map((entry) => (
           <Grid item xs={12} lg={6} key={entry.organization.id}>
             <GlassPanel
               title={entry.organization.name}
@@ -116,7 +137,7 @@ function OrganizationsPage() {
               </Stack>
             </GlassPanel>
           </Grid>
-        ))}
+        )) : null}
       </Grid>
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>{selected ? "Edit organization" : "Create organization"}</DialogTitle>

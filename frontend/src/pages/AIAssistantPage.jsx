@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Button, Chip, Grid, List, ListItemButton, ListItemText, Stack, TextField, Typography } from "@mui/material";
+import { Button, Chip, List, ListItemButton, ListItemText, Stack, TextField, Typography } from "@mui/material";
 import { aiApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
 import { useAuth } from "../store/AuthContext";

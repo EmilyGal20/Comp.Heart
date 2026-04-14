@@ -5,6 +5,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, aliased, joinedload
 
 from app.core.config import get_settings
@@ -38,6 +39,19 @@ VALID_STATUS_TRANSITIONS = {
     "DONE": {"REVIEW"},
 }
 MENTION_PATTERN = re.compile(r"@([A-Za-z0-9._-]+)")
+MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
+ALLOWED_ATTACHMENT_EXTENSIONS = {".txt", ".md", ".pdf", ".png", ".jpg", ".jpeg", ".csv", ".json", ".docx", ".xlsx"}
+ALLOWED_ATTACHMENT_CONTENT_TYPES = {
+    "text/plain",
+    "text/markdown",
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "text/csv",
+    "application/json",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
 
 
 def normalize_status(value: str) -> str:
@@ -613,16 +627,24 @@ def add_task_attachment(db: Session, *, task: Task, actor: User, upload: UploadF
 
     safe_name = upload.filename or "attachment.bin"
     extension = Path(safe_name).suffix
+    if extension.lower() not in ALLOWED_ATTACHMENT_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Unsupported attachment type")
+    if upload.content_type and upload.content_type not in ALLOWED_ATTACHMENT_CONTENT_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported attachment content type")
+    raw_bytes = upload.file.read()
+    if len(raw_bytes) > MAX_ATTACHMENT_BYTES:
+        raise HTTPException(status_code=400, detail="Attachment exceeds the 5 MB limit")
+    sanitized_name = re.sub(r"[^A-Za-z0-9._ -]", "_", Path(safe_name).name)[:160]
     stored_name = f"{uuid4().hex}{extension}"
     stored_path = task_dir / stored_name
 
     with stored_path.open("wb") as destination:
-        destination.write(upload.file.read())
+        destination.write(raw_bytes)
 
     public_path = f"/uploads/task_{task.id}/{stored_name}"
     attachment = TaskAttachment(
         task_id=task.id,
-        file_name=safe_name,
+        file_name=sanitized_name,
         file_path=public_path,
         uploaded_by=actor.id,
     )
@@ -644,6 +666,24 @@ def add_task_attachment(db: Session, *, task: Task, actor: User, upload: UploadF
     _notify_task_watchers(db, task=enriched_task, actor=actor, title="Task attachment added", message=f"received attachment {safe_name}", exclude_user_ids={actor.id, task.assignee_id or 0})
     _publish_task_event("task_updated", enriched_task, {"message": f"{actor.full_name} uploaded {safe_name}", "attachment": serialize_attachment_snapshot(attachment)})
     return attachment
+
+
+def get_attachment_by_id(db: Session, *, task_id: int, attachment_id: int):
+    return (
+        db.query(TaskAttachment)
+        .options(joinedload(TaskAttachment.uploader).joinedload(User.team))
+        .filter(TaskAttachment.id == attachment_id, TaskAttachment.task_id == task_id)
+        .first()
+    )
+
+
+def build_attachment_download_response(*, attachment: TaskAttachment):
+    settings = get_settings()
+    relative = attachment.file_path.removeprefix("/uploads/")
+    absolute_path = Path(settings.uploads_dir) / relative
+    if not absolute_path.exists():
+        raise HTTPException(status_code=404, detail="Attachment file is missing")
+    return FileResponse(path=absolute_path, filename=attachment.file_name)
 
 
 def watch_task(db: Session, *, task: Task, actor: User):

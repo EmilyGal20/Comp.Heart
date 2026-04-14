@@ -1,22 +1,36 @@
 import { useEffect, useState } from "react";
-import { Button, Chip, CircularProgress, Grid, Stack, Typography } from "@mui/material";
+import { Button, Chip, Stack, Typography } from "@mui/material";
 import { usersApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
+import PageState from "../components/PageState";
 import StatusPill from "../components/StatusPill";
 import { useRealtime } from "../store/RealtimeContext";
 
 function MyWorkPage() {
   const { versions } = useRealtime();
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const response = await usersApi.myDashboard();
+      setData(response.data);
+      setError("");
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "Unable to load your work");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    usersApi.myDashboard().then((response) => setData(response.data));
+    load();
   }, [versions.activity, versions.tasks, versions.notifications]);
-
-  if (!data) {
-    return <CircularProgress />;
-  }
 
   return (
     <>
@@ -25,6 +39,15 @@ function MyWorkPage() {
         title="Your focus lane"
         description="Assigned work, watched tasks, recent mentions, and practical shortcuts to help you move quickly."
       />
+      <PageState
+        loading={loading}
+        error={error}
+        empty={!loading && !error && !data}
+        title="Your work lane is clear"
+        description="Assigned tasks, watched items, and mentions will surface here as your workload grows."
+        onRetry={load}
+      />
+      {data ? (
       <Grid container spacing={2.5}>
         <Grid item xs={12} lg={6}>
           <GlassPanel title="Assigned tasks" subtitle="What needs movement now">
@@ -86,6 +109,7 @@ function MyWorkPage() {
           </GlassPanel>
         </Grid>
       </Grid>
+      ) : null}
     </>
   );
 }

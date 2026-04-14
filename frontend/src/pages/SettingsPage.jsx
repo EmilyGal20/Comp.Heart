@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Chip, Grid, MenuItem, Stack, Switch, TextField, Typography } from "@mui/material";
+import { Alert, Button, Chip, MenuItem, Stack, Switch, TextField, Typography } from "@mui/material";
 import { integrationsApi, settingsApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
+import PageState from "../components/PageState";
 import PageHeader from "../components/PageHeader";
 import { useAuth } from "../store/AuthContext";
 
@@ -13,8 +15,10 @@ function SettingsPage() {
   const [integrations, setIntegrations] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
+    setLoading(true);
     try {
       const [profileResponse, workspaceResponse, integrationsResponse] = await Promise.all([
         settingsApi.profile(),
@@ -31,6 +35,8 @@ function SettingsPage() {
       setError("");
     } catch (requestError) {
       setError(requestError.response?.data?.detail || "Unable to load settings");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,7 +82,14 @@ function SettingsPage() {
         title="Workspace, profile, and integration controls"
         description="A calmer operational settings area for profile preferences, workspace density, organization defaults, and GitHub, Slack, and email connectivity."
       />
-      {error ? <Alert severity="error" sx={{ mb: 2.5 }}>{error}</Alert> : null}
+      <PageState
+        loading={loading}
+        error={error}
+        empty={!loading && !error && !(profile && workspace && integrations)}
+        title="Settings are not available yet"
+        description="Retry to reload your profile, workspace defaults, and integration settings."
+        onRetry={load}
+      />
       {notice ? <Alert severity="success" sx={{ mb: 2.5 }} onClose={() => setNotice("")}>{notice}</Alert> : null}
       {profile && workspace && integrations ? (
         <Grid container spacing={3}>

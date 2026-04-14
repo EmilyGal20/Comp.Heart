@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SearchResultItem(BaseModel):
@@ -24,3 +24,8 @@ class GlobalSearchResponse(BaseModel):
     used_ai_ranking: bool = False
     groups: list[SearchGroup]
     total_results: int
+
+
+class AISearchRequest(BaseModel):
+    query: str = Field(min_length=2, max_length=300)
+    organization_id: int | None = None

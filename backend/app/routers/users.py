@@ -13,6 +13,8 @@ from app.services.audit_service import log_audit_event
 from app.services.integration_service import selectable_recipients
 from app.services.profile_service import get_user_profile_payload
 from app.utils.dependencies import get_current_user, require_min_role, require_same_org_or_super
+from app.utils.pagination import paginate_query
+from app.utils.security import hash_password
 
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -36,11 +38,15 @@ def _ensure_user_management_scope(current_user: User, organization_id: int, targ
         raise HTTPException(status_code=403, detail="You cannot manage the requested role")
 
 
-@router.get("", response_model=list[UserRead])
+@router.get("")
 def list_users(
     organization_id: int | None = Query(default=None),
     role: str | None = Query(default=None),
     team_id: int | None = Query(default=None),
+    search: str | None = Query(default=None, min_length=1, max_length=120),
+    paginated: bool = Query(default=False),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -58,7 +64,15 @@ def list_users(
         query = query.filter(User.role == role)
     if team_id:
         query = query.filter(User.team_id == team_id)
-    return query.order_by(User.full_name.asc()).all()
+    if search:
+        pattern = f"%{search.lower()}%"
+        query = query.filter(
+            User.full_name.ilike(pattern)
+            | User.email.ilike(pattern)
+            | User.title.ilike(pattern)
+        )
+    ordered = query.order_by(User.full_name.asc())
+    return paginate_query(ordered, page=page, page_size=page_size) if paginated else ordered.all()
 
 
 @router.post("", response_model=UserRead)
@@ -77,7 +91,7 @@ def create_user(
         responsibilities=payload.responsibilities,
         team_id=payload.team_id,
         organization_id=organization_id,
-        password=payload.password,
+        password=hash_password(payload.password),
         is_active=payload.is_active,
     )
     db.add(user)

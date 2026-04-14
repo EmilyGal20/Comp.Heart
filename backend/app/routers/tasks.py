@@ -21,6 +21,7 @@ from app.services.ai_service import task_assist
 from app.services.task_service import (
     add_task_attachment,
     add_task_comment,
+    build_attachment_download_response,
     can_edit_task,
     can_create_task,
     can_view_task,
@@ -28,6 +29,7 @@ from app.services.task_service import (
     create_subtask,
     enrich_task,
     get_task_by_id,
+    get_attachment_by_id,
     list_task_activity,
     list_task_attachments,
     list_task_comments,
@@ -39,12 +41,13 @@ from app.services.task_service import (
     watch_task,
 )
 from app.utils.dependencies import get_current_user, resolve_org_scope
+from app.utils.pagination import paginate_list
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-@router.get("", response_model=list[TaskRead])
+@router.get("")
 def get_tasks(
     status: str | None = Query(default=None),
     priority: str | None = Query(default=None),
@@ -55,11 +58,14 @@ def get_tasks(
     search: str | None = Query(default=None),
     parent_task_id: int | None = Query(default=None),
     watched_only: bool = Query(default=False),
+    paginated: bool = Query(default=False),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     scoped_org_id = resolve_org_scope(organization_id, current_user, db)
-    return list_tasks(
+    items = list_tasks(
         db,
         current_user=current_user,
         status=status,
@@ -72,6 +78,7 @@ def get_tasks(
         parent_task_id=parent_task_id,
         watched_only=watched_only,
     )
+    return paginate_list(items, page=page, page_size=page_size) if paginated else items
 
 
 @router.post("", response_model=TaskRead)
@@ -159,6 +166,15 @@ def upload_attachment(
 def get_attachments(task_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     _load_authorized_task(db, task_id, current_user)
     return list_task_attachments(db, task_id)
+
+
+@router.get("/{task_id}/attachments/{attachment_id}/download")
+def download_attachment(task_id: int, attachment_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    _load_authorized_task(db, task_id, current_user)
+    attachment = get_attachment_by_id(db, task_id=task_id, attachment_id=attachment_id)
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    return build_attachment_download_response(attachment=attachment)
 
 
 @router.post("/{task_id}/watch", response_model=TaskWatcherRead)

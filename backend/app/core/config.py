@@ -4,11 +4,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "CompHeart"
+    environment: str = "development"
     api_prefix: str = "/api"
     database_url: str = "sqlite:///./compheart.db"
     allowed_origin: str = "http://localhost:8069"
     secret_key: str = "compheart-dev-secret"
     uploads_dir: str = "uploads"
+    log_level: str = "INFO"
+    auto_reset_db_on_schema_change: bool = True
     openai_api_key: str | None = None
     openai_model: str = "gpt-4.1-mini"
     smtp_host: str | None = None

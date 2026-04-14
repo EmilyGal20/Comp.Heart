@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.user import TeamRead, UserRead
 
@@ -21,9 +21,9 @@ class KnowledgeVersionRead(BaseModel):
 
 
 class AnnouncementCreate(BaseModel):
-    title: str
-    content: str
-    severity: str = "medium"
+    title: str = Field(min_length=4, max_length=180)
+    content: str = Field(min_length=8, max_length=5000)
+    severity: Literal["low", "medium", "high", "critical"] = "medium"
     is_pinned: bool = False
     expires_at: datetime | None = None
     target_role: str | None = None
@@ -55,8 +55,8 @@ class AnnouncementRead(BaseModel):
 
 
 class MeetingSummaryCreate(BaseModel):
-    title: str
-    raw_notes: str
+    title: str = Field(min_length=4, max_length=180)
+    raw_notes: str = Field(min_length=20, max_length=20000)
     team_id: int | None = None
     organization_id: int | None = None
 
@@ -68,9 +68,9 @@ class MeetingSummaryRead(BaseModel):
     title: str
     raw_notes: str
     summary: str
-    action_items: list[str] = []
-    decisions: list[str] = []
-    followups: list[str] = []
+    action_items: list[str] = Field(default_factory=list)
+    decisions: list[str] = Field(default_factory=list)
+    followups: list[str] = Field(default_factory=list)
     created_at: datetime
     creator: Optional[UserRead] = None
     team: Optional[TeamRead] = None
@@ -80,10 +80,10 @@ class MeetingSummaryRead(BaseModel):
 
 
 class SelfNoteCreate(BaseModel):
-    title: str
-    content: str
+    title: str = Field(min_length=2, max_length=120)
+    content: str = Field(min_length=1, max_length=4000)
     is_pinned: bool = False
-    color: str = "cyan"
+    color: Literal["cyan", "violet", "amber", "emerald", "rose"] = "cyan"
 
 
 class SelfNoteUpdate(SelfNoteCreate):

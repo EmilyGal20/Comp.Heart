@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Button, Chip, Grid, Stack, Typography } from "@mui/material";
+import { Button, Chip, Stack, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { adminApi, announcementsApi, approvalsApi, analyticsApi, dashboardApi, meetingsApi, onboardingApi, selfNotesApi, usersApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import MetricCard from "../components/MetricCard";
+import PageState from "../components/PageState";
 import PageHeader from "../components/PageHeader";
 import StatusPill from "../components/StatusPill";
 import { useAuth } from "../store/AuthContext";
@@ -22,41 +24,52 @@ function DashboardPage() {
   const [meetings, setMeetings] = useState([]);
   const [onboarding, setOnboarding] = useState(null);
   const [onboardingOverview, setOnboardingOverview] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const params = activeOrganizationId ? { organization_id: activeOrganizationId } : {};
 
-  useEffect(() => {
-    Promise.all([
+  const load = async () => {
+    setLoading(true);
+    const requests = await Promise.allSettled([
       dashboardApi.summary(params),
       usersApi.myDashboard(),
       announcementsApi.list({ important_only: true, ...params }),
       approvalsApi.dashboard(params),
       analyticsApi.slaRisk(params),
       selfNotesApi.list(),
-      meetingsApi.list(),
+      meetingsApi.list({ paginated: true, page: 1, page_size: 4 }),
       onboardingApi.me(),
       ["ADMIN", "MANAGER", "SUPER_ADMIN"].includes(user.role)
         ? (user.role === "SUPER_ADMIN" && !activeOrganizationId ? Promise.resolve({ data: null }) : adminApi.onboardingOverview(user.role === "SUPER_ADMIN" ? params : {}))
         : Promise.resolve({ data: null }),
-    ]).then(([summaryResponse, personalResponse, announcementResponse, approvalResponse, riskResponse, notesResponse, meetingsResponse, onboardingResponse, onboardingOverviewResponse]) => {
-      setSummary(summaryResponse.data);
-      setPersonal(personalResponse.data);
-      setAnnouncements(announcementResponse.data);
-      setApprovals(approvalResponse.data);
-      setRisk(riskResponse.data);
-      setNotes(notesResponse.data);
-      setMeetings(meetingsResponse.data);
-      setOnboarding(onboardingResponse.data);
-      setOnboardingOverview(onboardingOverviewResponse.data);
-    });
-  }, [activeOrganizationId, versions.activity, versions.notifications, versions.tasks, versions.analytics, versions.users]);
+    ]);
 
-  if (!summary || !personal || !approvals || !onboarding) return null;
+    const [summaryResponse, personalResponse, announcementResponse, approvalResponse, riskResponse, notesResponse, meetingsResponse, onboardingResponse, onboardingOverviewResponse] = requests;
+
+    if (summaryResponse.status === "fulfilled") setSummary(summaryResponse.value.data);
+    if (personalResponse.status === "fulfilled") setPersonal(personalResponse.value.data);
+    if (announcementResponse.status === "fulfilled") setAnnouncements(Array.isArray(announcementResponse.value.data) ? announcementResponse.value.data : announcementResponse.value.data.items || []);
+    if (approvalResponse.status === "fulfilled") setApprovals(approvalResponse.value.data);
+    if (riskResponse.status === "fulfilled") setRisk(riskResponse.value.data);
+    if (notesResponse.status === "fulfilled") setNotes(Array.isArray(notesResponse.value.data) ? notesResponse.value.data : notesResponse.value.data.items || []);
+    if (meetingsResponse.status === "fulfilled") setMeetings(Array.isArray(meetingsResponse.value.data) ? meetingsResponse.value.data : meetingsResponse.value.data.items || []);
+    if (onboardingResponse.status === "fulfilled") setOnboarding(onboardingResponse.value.data);
+    if (onboardingOverviewResponse.status === "fulfilled") setOnboardingOverview(onboardingOverviewResponse.value.data);
+
+    const criticalError = [summaryResponse, personalResponse, approvalResponse, onboardingResponse].find((entry) => entry.status === "rejected");
+    setError(criticalError?.reason?.response?.data?.detail || criticalError?.reason?.message || "");
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+  }, [activeOrganizationId, versions.activity, versions.notifications, versions.tasks, versions.analytics, versions.users]);
 
   return (
     <>
       <PageHeader
-        eyebrow={summary.scope_label}
+        eyebrow={summary?.scope_label || (user.role === "SUPER_ADMIN" ? "Global" : "Organization")}
         title={user.role === "USER" ? `Welcome back, ${user.full_name.split(" ")[0]}` : "Operational dashboard"}
         description="A more intentional daily workspace for onboarding progress, urgent messages, approvals, risk, and the work most likely to need your next move."
         actions={[
@@ -64,7 +77,16 @@ function DashboardPage() {
           <Chip key="live" label={`Realtime ${connectionState}`} color={connectionState === "connected" ? "success" : "default"} />,
         ]}
       />
-      <Grid container spacing={3}>
+      <PageState
+        loading={loading}
+        error={error}
+        empty={!loading && !error && (!summary || !personal || !approvals || !onboarding)}
+        title="Dashboard data is temporarily unavailable"
+        description="The core overview widgets could not be assembled yet. Retry to refresh the operational snapshot."
+        onRetry={load}
+      />
+      {summary && personal && approvals && onboarding ? (
+        <Grid container spacing={3}>
         <Grid item xs={12} md={3}><MetricCard label={user.role === "USER" ? "My open tasks" : "Open tasks"} value={user.role === "USER" ? personal.summary.my_open_tasks : summary.open_tasks} helper="Current active load" accent="rgba(61,200,255,0.22)" /></Grid>
         <Grid item xs={12} md={3}><MetricCard label="Pending approvals" value={approvals.summary.pending_count} helper="Visible approval queue" accent="rgba(245,165,36,0.22)" /></Grid>
         <Grid item xs={12} md={3}><MetricCard label="At-risk tasks" value={risk.filter((item) => item.risk_level !== "low").length} helper="Predictive SLA pressure" accent="rgba(255,107,122,0.24)" /></Grid>
@@ -119,7 +141,8 @@ function DashboardPage() {
             </Stack>
           </GlassPanel>
         </Grid>
-      </Grid>
+        </Grid>
+      ) : null}
     </>
   );
 }

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Add, Forum, Send } from "@mui/icons-material";
-import { Alert, Avatar, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, List, ListItemButton, ListItemText, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Avatar, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, List, ListItemButton, ListItemText, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import dayjs from "dayjs";
 import { chatApi, organizationsApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
 import { useAuth } from "../store/AuthContext";

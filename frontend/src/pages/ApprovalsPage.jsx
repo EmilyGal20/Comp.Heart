@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Chip, Drawer, Grid, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Drawer, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { approvalsApi, usersApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
+import PageState from "../components/PageState";
+import PaginationControls from "../components/PaginationControls";
 import PageHeader from "../components/PageHeader";
 import StatusPill from "../components/StatusPill";
 import { useAuth } from "../store/AuthContext";
@@ -16,15 +19,22 @@ function ApprovalsPage() {
   const [selected, setSelected] = useState(null);
   const [filters, setFilters] = useState({ status: "", requester_id: "", approver_id: "", created_from: "", created_to: "" });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [meta, setMeta] = useState(null);
+  const [page, setPage] = useState(1);
   const orgId = activeOrganizationId || user.organization_id;
 
   const load = async () => {
+    setLoading(true);
     try {
       const scopedParams = user.role === "SUPER_ADMIN" && !activeOrganizationId ? {} : { organization_id: orgId };
       const [dashboardResponse, approvalsResponse, usersResponse] = await Promise.all([
         approvalsApi.dashboard(scopedParams),
         approvalsApi.list({
           ...scopedParams,
+          paginated: true,
+          page,
+          page_size: 20,
           status: filters.status || undefined,
           requester_id: filters.requester_id || undefined,
           approver_id: filters.approver_id || undefined,
@@ -34,17 +44,24 @@ function ApprovalsPage() {
         usersApi.list(scopedParams),
       ]);
       setDashboard(dashboardResponse.data);
-      setApprovals(approvalsResponse.data);
+      setApprovals(approvalsResponse.data.items || []);
+      setMeta(approvalsResponse.data.meta || null);
       setUsers(usersResponse.data);
       setError("");
     } catch (requestError) {
       setError(requestError.response?.data?.detail || "Unable to load approvals");
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     load();
-  }, [activeOrganizationId, versions.analytics, versions.activity, versions.tasks, filters.status, filters.requester_id, filters.approver_id, filters.created_from, filters.created_to]);
+  }, [activeOrganizationId, versions.analytics, versions.activity, versions.tasks, filters.status, filters.requester_id, filters.approver_id, filters.created_from, filters.created_to, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeOrganizationId, filters.status, filters.requester_id, filters.approver_id, filters.created_from, filters.created_to]);
 
   const canDecide = useMemo(() => ["SUPER_ADMIN", "ADMIN"].includes(user.role), [user.role]);
 
@@ -92,6 +109,15 @@ function ApprovalsPage() {
               }
             >
               <Stack spacing={1.2}>
+                <PageState
+                  loading={loading}
+                  error={error}
+                  empty={!loading && !error && approvals.length === 0}
+                  title="No approvals match this queue"
+                  description="Adjust the filters or review a different date range."
+                  onRetry={load}
+                  minHeight={160}
+                />
                 {approvals.map((approval) => (
                   <Box key={approval.id} onClick={() => setSelected(approval)} sx={{ p: 1.7, borderRadius: 3.5, cursor: "pointer", bgcolor: "rgba(255,255,255,0.03)", border: "1px solid rgba(148,163,184,0.08)" }}>
                     <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" spacing={1.5}>
@@ -109,6 +135,7 @@ function ApprovalsPage() {
                   </Box>
                 ))}
               </Stack>
+              <PaginationControls meta={meta} onChange={setPage} disabled={loading} />
             </GlassPanel>
           </Grid>
         </Grid>

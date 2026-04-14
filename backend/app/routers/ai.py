@@ -4,7 +4,14 @@ from sqlalchemy.orm import Session, joinedload
 from app.db.session import get_db
 from app.models.ai import AIConversation
 from app.models.user import User
-from app.schemas.ai import AIChatRequest, AIChatResponse, AIConversationRead, AITaskGenerationRequest, AITaskGenerationResponse
+from app.schemas.ai import (
+    AIChatRequest,
+    AIChatResponse,
+    AIConversationRead,
+    AISubtaskGenerationRequest,
+    AITaskGenerationRequest,
+    AITaskGenerationResponse,
+)
 from app.services.ai_service import chat, generate_subtasks, generate_tasks, suggest_task_plan
 from app.services.task_service import get_task_by_id, can_view_task
 from app.utils.dependencies import get_current_user
@@ -77,17 +84,16 @@ def ai_generate_tasks(
 
 @router.post("/generate-subtasks", response_model=AITaskGenerationResponse)
 def ai_generate_subtasks(
-    payload: dict,
+    payload: AISubtaskGenerationRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    task_id = payload.get("task_id")
-    task = get_task_by_id(db, task_id)
+    task = get_task_by_id(db, payload.task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     if not can_view_task(current_user, task):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
-    suggestions, used_openai = generate_subtasks(db, task=task, user=current_user, count=int(payload.get("task_count") or 4))
+    suggestions, used_openai = generate_subtasks(db, task=task, user=current_user, count=payload.task_count)
     return {
         "suggestions": suggestions,
         "used_openai": used_openai,

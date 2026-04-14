@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -6,14 +6,22 @@ from app.models.productivity import MeetingSummary
 from app.schemas.productivity import MeetingSummaryCreate, MeetingSummaryRead
 from app.services.productivity_service import create_tasks_from_meeting, list_meetings, summarize_meeting_notes
 from app.utils.dependencies import get_current_user, resolve_org_scope
+from app.utils.pagination import paginate_list
 
 
 router = APIRouter(prefix="/meetings", tags=["meetings"])
 
 
-@router.get("", response_model=list[MeetingSummaryRead])
-def get_meetings(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    return list_meetings(db, current_user=current_user)
+@router.get("")
+def get_meetings(
+    paginated: bool = Query(default=False),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=12, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    items = list_meetings(db, current_user=current_user)
+    return paginate_list(items, page=page, page_size=page_size) if paginated else items
 
 
 @router.post("/summarize", response_model=MeetingSummaryRead)

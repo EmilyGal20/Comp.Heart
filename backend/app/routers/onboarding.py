@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.onboarding import OnboardingProgressUpdate, OnboardingResponse
+from app.schemas.onboarding import OnboardingProgressUpdate, OnboardingResponse, OnboardingStepListItem
 from app.services.onboarding_service import get_user_onboarding, list_onboarding_steps, update_onboarding_step_progress
 from app.utils.dependencies import get_current_user, resolve_org_scope
 
@@ -10,7 +10,7 @@ from app.utils.dependencies import get_current_user, resolve_org_scope
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
 
 
-@router.get("", response_model=list[dict])
+@router.get("", response_model=list[OnboardingStepListItem])
 def get_onboarding_steps(
     organization_id: int | None = Query(default=None),
     db: Session = Depends(get_db),

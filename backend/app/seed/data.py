@@ -14,6 +14,7 @@ from app.models.productivity import Announcement, AnnouncementRead, KnowledgeVer
 from app.models.task import Task, TaskActivity, TaskAttachment, TaskComment, TaskWatcher
 from app.models.user import Team, User
 from app.models.work_management import AuditLog, RecurringTask, Sprint, TaskApproval, TaskMessage, TaskTemplate
+from app.utils.security import hash_password
 
 
 def seed_database(db: Session):
@@ -40,16 +41,16 @@ def seed_database(db: Session):
     db.flush()
 
     users = [
-        User(full_name="Emily Gal", email="emily@compheart.local", role="SUPER_ADMIN", title="Top CEO", responsibilities="Global system governance, organization growth, executive oversight.", organization_id=organizations[0].id, team_id=teams[0].id, password="demo123"),
-        User(full_name="Maya Chen", email="maya@northstar.local", role="ADMIN", title="Chief of Staff", responsibilities="Org governance, automation approvals, KPI reviews.", organization_id=organizations[0].id, team_id=teams[0].id, password="demo123"),
-        User(full_name="Ava Thompson", email="ava@northstar.local", role="MANAGER", title="Support Manager", responsibilities="Escalation ownership, team SLA monitoring, customer response coordination.", organization_id=organizations[0].id, team_id=teams[1].id, password="demo123"),
-        User(full_name="Leo Grant", email="leo@northstar.local", role="USER", title="Support Specialist", responsibilities="Incident updates, task follow-up, knowledge feedback.", organization_id=organizations[0].id, team_id=teams[1].id, password="demo123"),
-        User(full_name="Jordan Rivera", email="jordan@aether.local", role="ADMIN", title="Product Operations Lead", responsibilities="Release coordination, documentation quality, workflow improvement.", organization_id=organizations[1].id, team_id=teams[2].id, password="demo123"),
-        User(full_name="Noah Patel", email="noah@aether.local", role="MANAGER", title="Automation Engineering Manager", responsibilities="Workflow automation, risk monitoring, execution reviews.", organization_id=organizations[1].id, team_id=teams[3].id, password="demo123"),
-        User(full_name="Iris Solis", email="iris@aether.local", role="USER", title="Automation Engineer", responsibilities="Rule quality, alert tuning, native helper review.", organization_id=organizations[1].id, team_id=teams[3].id, password="demo123"),
-        User(full_name="Camila Brooks", email="camila@harbor.local", role="ADMIN", title="Operations Director", responsibilities="Store performance, workforce visibility, org readiness.", organization_id=organizations[2].id, team_id=teams[4].id, password="demo123"),
-        User(full_name="Marcus Hale", email="marcus@harbor.local", role="MANAGER", title="Retail Systems Manager", responsibilities="Operational rollout planning and issue triage.", organization_id=organizations[2].id, team_id=teams[5].id, password="demo123"),
-        User(full_name="Nina Torres", email="nina@harbor.local", role="USER", title="Systems Coordinator", responsibilities="Operational updates, rollout execution, team coordination.", organization_id=organizations[2].id, team_id=teams[5].id, password="demo123"),
+        User(full_name="Emily Gal", email="emily@compheart.local", role="SUPER_ADMIN", title="Top CEO", responsibilities="Global system governance, organization growth, executive oversight.", organization_id=organizations[0].id, team_id=teams[0].id, password=hash_password("demo123")),
+        User(full_name="Maya Chen", email="maya@northstar.local", role="ADMIN", title="Chief of Staff", responsibilities="Org governance, automation approvals, KPI reviews.", organization_id=organizations[0].id, team_id=teams[0].id, password=hash_password("demo123")),
+        User(full_name="Ava Thompson", email="ava@northstar.local", role="MANAGER", title="Support Manager", responsibilities="Escalation ownership, team SLA monitoring, customer response coordination.", organization_id=organizations[0].id, team_id=teams[1].id, password=hash_password("demo123")),
+        User(full_name="Leo Grant", email="leo@northstar.local", role="USER", title="Support Specialist", responsibilities="Incident updates, task follow-up, knowledge feedback.", organization_id=organizations[0].id, team_id=teams[1].id, password=hash_password("demo123")),
+        User(full_name="Jordan Rivera", email="jordan@aether.local", role="ADMIN", title="Product Operations Lead", responsibilities="Release coordination, documentation quality, workflow improvement.", organization_id=organizations[1].id, team_id=teams[2].id, password=hash_password("demo123")),
+        User(full_name="Noah Patel", email="noah@aether.local", role="MANAGER", title="Automation Engineering Manager", responsibilities="Workflow automation, risk monitoring, execution reviews.", organization_id=organizations[1].id, team_id=teams[3].id, password=hash_password("demo123")),
+        User(full_name="Iris Solis", email="iris@aether.local", role="USER", title="Automation Engineer", responsibilities="Rule quality, alert tuning, native helper review.", organization_id=organizations[1].id, team_id=teams[3].id, password=hash_password("demo123")),
+        User(full_name="Camila Brooks", email="camila@harbor.local", role="ADMIN", title="Operations Director", responsibilities="Store performance, workforce visibility, org readiness.", organization_id=organizations[2].id, team_id=teams[4].id, password=hash_password("demo123")),
+        User(full_name="Marcus Hale", email="marcus@harbor.local", role="MANAGER", title="Retail Systems Manager", responsibilities="Operational rollout planning and issue triage.", organization_id=organizations[2].id, team_id=teams[5].id, password=hash_password("demo123")),
+        User(full_name="Nina Torres", email="nina@harbor.local", role="USER", title="Systems Coordinator", responsibilities="Operational updates, rollout execution, team coordination.", organization_id=organizations[2].id, team_id=teams[5].id, password=hash_password("demo123")),
     ]
     db.add_all(users)
     db.flush()

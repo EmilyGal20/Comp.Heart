@@ -1,16 +1,22 @@
 from datetime import date, datetime
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.user import UserRead
 
 
 class SprintBase(BaseModel):
-    name: str
-    goal: Optional[str] = None
+    name: str = Field(min_length=3, max_length=120)
+    goal: Optional[str] = Field(default=None, max_length=600)
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+
+    @model_validator(mode="after")
+    def validate_dates(self):
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValueError("end_date must be after start_date")
+        return self
 
 
 class SprintCreate(SprintBase):
@@ -18,7 +24,7 @@ class SprintCreate(SprintBase):
 
 
 class SprintStatusUpdate(BaseModel):
-    status: str
+    status: Literal["PLANNED", "ACTIVE", "COMPLETED"]
 
 
 class SprintRead(SprintBase):
@@ -26,20 +32,20 @@ class SprintRead(SprintBase):
     organization_id: int
     status: str
     created_at: datetime
-    tasks: list[dict] = []
-    progress: dict = {}
+    tasks: list[dict] = Field(default_factory=list)
+    progress: dict = Field(default_factory=dict)
 
     class Config:
         from_attributes = True
 
 
 class TaskTemplateBase(BaseModel):
-    name: str
-    title_template: str
-    description_template: str
-    default_priority: str = "medium"
-    default_tags: list[str] = []
-    default_sla: int = 24
+    name: str = Field(min_length=3, max_length=120)
+    title_template: str = Field(min_length=3, max_length=220)
+    description_template: str = Field(min_length=3, max_length=5000)
+    default_priority: Literal["low", "medium", "high", "critical"] = "medium"
+    default_tags: list[str] = Field(default_factory=list)
+    default_sla: int = Field(default=24, ge=1, le=720)
 
 
 class TaskTemplateCreate(TaskTemplateBase):
@@ -59,9 +65,15 @@ class RecurringTaskCreate(BaseModel):
     organization_id: Optional[int] = None
     template_id: Optional[int] = None
     source_task_id: Optional[int] = None
-    frequency: str
+    frequency: Literal["daily", "weekly", "monthly"]
     next_run_at: datetime
     is_active: bool = True
+
+    @model_validator(mode="after")
+    def validate_source(self):
+        if not self.template_id and not self.source_task_id:
+            raise ValueError("template_id or source_task_id is required")
+        return self
 
 
 class RecurringTaskRead(BaseModel):
@@ -81,11 +93,11 @@ class RecurringTaskRead(BaseModel):
 
 class TaskApprovalCreate(BaseModel):
     task_id: int
-    reason: str | None = None
+    reason: str | None = Field(default=None, max_length=500)
 
 
 class TaskApprovalAction(BaseModel):
-    status: str
+    status: Literal["APPROVED", "REJECTED"]
 
 
 class ApprovalTaskLight(BaseModel):
@@ -114,7 +126,11 @@ class TaskApprovalRead(BaseModel):
 
 
 class TaskMessageCreate(BaseModel):
-    message: str
+    message: str = Field(min_length=1, max_length=4000)
+
+
+class BacklogReorderRequest(BaseModel):
+    ordered_ids: list[int] = Field(min_length=1, max_length=500)
 
 
 class TaskMessageRead(BaseModel):

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { authApi } from "../api/endpoints";
+import { APP_AUTH_EXPIRED_EVENT } from "../api/client";
 
 const AuthContext = createContext(null);
 const STORAGE_KEY = "compheart-session";
@@ -51,6 +52,19 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     hydrate();
+  }, []);
+
+  useEffect(() => {
+    const handleExpired = () => {
+      localStorage.removeItem(STORAGE_KEY);
+      setToken("");
+      setUser(null);
+      setScopedOrganizationId(null);
+      setLoading(false);
+    };
+
+    window.addEventListener(APP_AUTH_EXPIRED_EVENT, handleExpired);
+    return () => window.removeEventListener(APP_AUTH_EXPIRED_EVENT, handleExpired);
   }, []);
 
   const login = async ({ email, password, organization_slug }) => {

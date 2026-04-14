@@ -1,28 +1,28 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.user import UserRead
 
 
 class KnowledgeCreate(BaseModel):
-    title: str
-    category: str
-    content: str
-    summary: str
-    tag_names: List[str] = []
+    title: str = Field(min_length=4, max_length=180)
+    category: str = Field(min_length=2, max_length=80)
+    content: str = Field(min_length=10, max_length=50000)
+    summary: str = Field(min_length=10, max_length=1000)
+    tag_names: List[str] = Field(default_factory=list)
     author_id: Optional[int] = None
     organization_id: Optional[int] = None
     is_published: bool = True
 
 
 class KnowledgeUpdate(BaseModel):
-    title: str
-    category: str
-    content: str
-    summary: str
-    tag_names: List[str] = []
+    title: str = Field(min_length=4, max_length=180)
+    category: str = Field(min_length=2, max_length=80)
+    content: str = Field(min_length=10, max_length=50000)
+    summary: str = Field(min_length=10, max_length=1000)
+    tag_names: List[str] = Field(default_factory=list)
     author_id: Optional[int] = None
     is_published: bool = True
 
@@ -48,7 +48,7 @@ class KnowledgeRead(BaseModel):
     updated_at: datetime
     current_version: int = 1
     author: Optional[UserRead] = None
-    tags: List[KnowledgeTagRead] = []
+    tags: List[KnowledgeTagRead] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

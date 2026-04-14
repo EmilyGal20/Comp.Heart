@@ -11,6 +11,7 @@ from app.schemas.work_management import (
     AuditLogRead,
     GlobalSearchResult,
     PermissionMatrixEntry,
+    BacklogReorderRequest,
     RecurringTaskCreate,
     RecurringTaskRead,
     ReportSummary,
@@ -50,6 +51,7 @@ from app.services.work_management_service import (
     update_sprint_status,
 )
 from app.utils.dependencies import get_current_user, require_min_role, resolve_org_scope
+from app.utils.pagination import paginate_list
 
 
 router = APIRouter(prefix="/work", tags=["work-management"])
@@ -104,13 +106,13 @@ def get_backlog(
 
 @router.patch("/backlog/reorder")
 def patch_backlog(
-    ordered_ids: list[int],
+    payload: BacklogReorderRequest,
     organization_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
     current_user=Depends(require_min_role(ROLE_ADMIN)),
 ):
     scoped_org_id = resolve_org_scope(organization_id, current_user, db, allow_global=False)
-    reorder_backlog(db, organization_id=scoped_org_id, ordered_ids=ordered_ids, actor=current_user)
+    reorder_backlog(db, organization_id=scoped_org_id, ordered_ids=payload.ordered_ids, actor=current_user)
     return {"reordered": True}
 
 
@@ -221,12 +223,20 @@ def patch_approval(
     return decide_approval(db, approval=approval, status=payload.status, actor=current_user)
 
 
-@router.get("/tasks/{task_id}/messages", response_model=list[TaskMessageRead])
-def get_task_chat(task_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+@router.get("/tasks/{task_id}/messages")
+def get_task_chat(
+    task_id: int,
+    paginated: bool = Query(default=False),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=30, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
     task = get_task_by_id(db, task_id)
     if not task or not can_view_task(current_user, task):
         raise HTTPException(status_code=404, detail="Task unavailable")
-    return list_task_messages(db, task_id)
+    items = list_task_messages(db, task_id)
+    return paginate_list(items, page=page, page_size=page_size) if paginated else items
 
 
 @router.post("/tasks/{task_id}/messages", response_model=TaskMessageRead)
@@ -273,15 +283,19 @@ def get_report_export(
     return export_tasks_csv(db, organization_id=scoped_org_id)
 
 
-@router.get("/audit-logs", response_model=list[AuditLogRead])
+@router.get("/audit-logs")
 def get_audit_logs(
     organization_id: int | None = Query(default=None),
+    paginated: bool = Query(default=False),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=100),
     limit: int = Query(default=50, le=200),
     db: Session = Depends(get_db),
     current_user=Depends(require_min_role(ROLE_ADMIN)),
 ):
     scoped_org_id = resolve_org_scope(organization_id, current_user, db)
-    return list_audit_logs(db, organization_id=scoped_org_id, limit=limit)
+    items = list_audit_logs(db, organization_id=scoped_org_id, limit=max(limit, page_size if paginated else limit))
+    return paginate_list(items, page=page, page_size=page_size) if paginated else items
 
 
 @router.get("/permissions/matrix", response_model=list[PermissionMatrixEntry])

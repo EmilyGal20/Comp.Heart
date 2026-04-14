@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.organization import OrganizationRead
 from app.schemas.user import TeamRead
@@ -20,9 +20,9 @@ class ProfileSettingsRead(BaseModel):
 
 
 class ProfileSettingsUpdate(BaseModel):
-    full_name: str
-    title: str
-    responsibilities: str = ""
+    full_name: str = Field(min_length=2, max_length=120)
+    title: str = Field(min_length=2, max_length=120)
+    responsibilities: str = Field(default="", max_length=1200)
     notification_email: bool = True
     notification_desktop: bool = True
 
@@ -38,9 +38,9 @@ class WorkspaceSettingsRead(BaseModel):
 
 
 class WorkspaceSettingsUpdate(BaseModel):
-    default_task_view: str = "list"
-    density: str = "comfortable"
-    theme_mode: str = "dark"
+    default_task_view: str = Field(default="list", pattern="^(list|board|calendar|timeline)$")
+    density: str = Field(default="comfortable", pattern="^(compact|comfortable)$")
+    theme_mode: str = Field(default="dark", pattern="^(dark|system)$")
 
 
 class OrganizationSettingsRead(BaseModel):
@@ -56,7 +56,7 @@ class OrganizationSettingsRead(BaseModel):
 
 
 class OrganizationSettingsUpdate(BaseModel):
-    default_sla_hours: int = 24
+    default_sla_hours: int = Field(default=24, ge=1, le=720)
     require_approval_for_critical: bool = True
     recurring_auto_run: bool = True
     slack_notifications_enabled: bool = False

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Chip, CircularProgress, Grid, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
+import { Button, Chip, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { adminApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import MetricCard from "../components/MetricCard";
+import PageState from "../components/PageState";
 import PageHeader from "../components/PageHeader";
 import { useRealtime } from "../store/RealtimeContext";
 
@@ -42,8 +44,14 @@ function GlobalControlCenterPage() {
           <Button key="refresh" variant="outlined" onClick={load}>Refresh</Button>,
         ]}
       />
-      {loading ? <Stack alignItems="center" sx={{ py: 10 }}><CircularProgress /></Stack> : null}
-      {error ? <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert> : null}
+      <PageState
+        loading={loading}
+        error={error}
+        empty={!loading && !error && !data}
+        title="Command center is waiting for platform data"
+        description="No system snapshot is available yet. Retry to reload the executive control surface."
+        onRetry={load}
+      />
       {data ? (
         <Grid container spacing={3}>
           <Grid item xs={12} md={6} xl={3}><MetricCard label="Organizations" value={data.overview.total_organizations} helper="Companies on the platform" accent="rgba(155,124,255,0.28)" /></Grid>

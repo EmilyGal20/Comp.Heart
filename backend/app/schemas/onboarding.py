@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class OnboardingStepRead(BaseModel):
@@ -14,6 +14,7 @@ class OnboardingStepRead(BaseModel):
     role_target: Optional[str] = None
     is_completed: bool
     completed_at: Optional[datetime] = None
+    organization_id: Optional[int] = None
 
 
 class OnboardingSummary(BaseModel):
@@ -36,3 +37,14 @@ class OnboardingResponse(BaseModel):
 
 class OnboardingProgressUpdate(BaseModel):
     is_completed: bool
+
+
+class OnboardingStepListItem(BaseModel):
+    id: int
+    title: str
+    description: str
+    role_target: Optional[str] = None
+    action_path: Optional[str] = None
+    action_label: Optional[str] = None
+    step_type: str = Field(max_length=80)
+    organization_id: Optional[int] = None

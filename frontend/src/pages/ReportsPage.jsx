@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, Chip, Grid, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Stack, Typography } from "@mui/material";
 import { analyticsApi, workApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
+import PageState from "../components/PageState";
+import PaginationControls from "../components/PaginationControls";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
 
@@ -30,32 +33,45 @@ function ReportsPage() {
   const [userRisk, setUserRisk] = useState([]);
   const [teamRisk, setTeamRisk] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [auditMeta, setAuditMeta] = useState(null);
+  const [auditPage, setAuditPage] = useState(1);
   const orgId = activeOrganizationId || user.organization_id;
 
   useEffect(() => {
+    setLoading(true);
     Promise.all([
       workApi.reports({ organization_id: orgId }),
-      workApi.auditLogs({ organization_id: orgId }),
+      workApi.auditLogs({ organization_id: orgId, paginated: true, page: auditPage, page_size: 10 }),
       analyticsApi.slaRisk({ organization_id: orgId }),
       analyticsApi.userRisk({ organization_id: orgId }),
       analyticsApi.teamRisk({ organization_id: orgId }),
     ])
       .then(([summaryResponse, logsResponse, taskRiskResponse, userRiskResponse, teamRiskResponse]) => {
         setSummary(summaryResponse.data);
-        setAuditLogs(logsResponse.data);
+        setAuditLogs(logsResponse.data.items || []);
+        setAuditMeta(logsResponse.data.meta || null);
         setSlaRisk(taskRiskResponse.data);
         setUserRisk(userRiskResponse.data);
         setTeamRisk(teamRiskResponse.data);
         setError("");
       })
-      .catch((requestError) => setError(requestError.response?.data?.detail || "Unable to load reports"));
-  }, [orgId, versions.tasks, versions.analytics, versions.activity]);
+      .catch((requestError) => setError(requestError.response?.data?.detail || "Unable to load reports"))
+      .finally(() => setLoading(false));
+  }, [orgId, versions.tasks, versions.analytics, versions.activity, auditPage]);
 
-  if (!summary) return null;
+  const retry = () => {
+    setAuditPage(1);
+    setSummary(null);
+    setError("");
+    setLoading(true);
+  };
 
-  const statusMax = Math.max(...Object.values(summary.tasks_by_status), 1);
-  const userMax = Math.max(...summary.tasks_by_user.map((item) => item.count), 1);
+  const hasSummary = Boolean(summary);
+  const statusMax = hasSummary ? Math.max(...Object.values(summary.tasks_by_status), 1) : 1;
+  const userMax = hasSummary ? Math.max(...summary.tasks_by_user.map((item) => item.count), 1) : 1;
   const teamMax = Math.max(...teamRisk.map((item) => item.avg_risk_score), 1);
+
 
   return (
     <>
@@ -65,7 +81,16 @@ function ReportsPage() {
         description="Track SLA pressure, workload imbalance, sprint performance, and audit history with richer operational visuals."
         actions={[<Button key="export" variant="outlined" component="a" href={`http://localhost:7155/api/work/reports/tasks.csv?organization_id=${orgId}`} target="_blank">Export CSV</Button>]}
       />
-      {error ? <Alert severity="error" sx={{ mb: 2.5 }}>{error}</Alert> : null}
+      {error && hasSummary ? <Alert severity="warning" sx={{ mb: 2.5 }}>{error}</Alert> : null}
+      <PageState
+        loading={loading && !hasSummary}
+        error={!hasSummary ? error : ""}
+        empty={!loading && !error && !hasSummary}
+        title="No reports available yet"
+        description="As more work flows through tasks, approvals, and sprints, the reporting layer will populate automatically."
+        onRetry={retry}
+      />
+      {hasSummary ? (
       <Grid container spacing={3}>
         <Grid item xs={12} md={3}><MetricCard label="Breached SLA" value={summary.sla_performance.breached} helper="Tasks already outside SLA" accent="rgba(255,107,122,0.22)" /></Grid>
         <Grid item xs={12} md={3}><MetricCard label="At risk" value={slaRisk.filter((item) => item.risk_level !== "low").length} helper="Likely to slip soon" accent="rgba(245,165,36,0.22)" /></Grid>
@@ -155,9 +180,11 @@ function ReportsPage() {
                 </Box>
               ))}
             </Stack>
+            <PaginationControls meta={auditMeta} page={auditPage} onChange={setAuditPage} />
           </GlassPanel>
         </Grid>
       </Grid>
+      ) : null}
     </>
   );
 }

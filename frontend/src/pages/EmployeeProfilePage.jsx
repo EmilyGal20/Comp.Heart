@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Alert, Avatar, Chip, Grid, Stack, Typography } from "@mui/material";
+import { Alert, Avatar, Chip, Stack, Typography } from "@mui/material";
 import { useParams } from "react-router-dom";
 import { usersApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";

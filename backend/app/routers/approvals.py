@@ -8,6 +8,7 @@ from app.schemas.approvals import ApprovalDashboardResponse
 from app.schemas.work_management import TaskApprovalAction, TaskApprovalRead
 from app.services.approval_service import approvals_dashboard, decide_approval_from_dashboard, list_approvals
 from app.utils.dependencies import get_current_user, require_min_role, resolve_org_scope
+from app.utils.pagination import paginate_list
 
 
 router = APIRouter(prefix="/approvals", tags=["approvals"])
@@ -23,7 +24,7 @@ def get_dashboard(
     return approvals_dashboard(db, current_user=current_user, organization_id=scoped_org_id)
 
 
-@router.get("", response_model=list[TaskApprovalRead])
+@router.get("")
 def get_approvals(
     organization_id: int | None = Query(default=None),
     status: str | None = Query(default=None),
@@ -31,11 +32,14 @@ def get_approvals(
     approver_id: int | None = Query(default=None),
     created_from: datetime | None = Query(default=None),
     created_to: datetime | None = Query(default=None),
+    paginated: bool = Query(default=False),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     scoped_org_id = resolve_org_scope(organization_id, current_user, db) if (organization_id or current_user.role != "SUPER_ADMIN") else None
-    return list_approvals(
+    items = list_approvals(
         db,
         current_user=current_user,
         organization_id=scoped_org_id,
@@ -45,6 +49,7 @@ def get_approvals(
         created_from=created_from,
         created_to=created_to,
     )
+    return paginate_list(items, page=page, page_size=page_size) if paginated else items
 
 
 @router.patch("/{approval_id}", response_model=TaskApprovalRead)

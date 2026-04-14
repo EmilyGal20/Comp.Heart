@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, Box, Button, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { notificationsApi } from "../api/endpoints";
 import GlassPanel from "../components/GlassPanel";
+import PageState from "../components/PageState";
+import PaginationControls from "../components/PaginationControls";
 import PageHeader from "../components/PageHeader";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
@@ -10,13 +12,20 @@ function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [meta, setMeta] = useState(null);
   const { activeOrganizationId, user } = useAuth();
   const { versions, connectionState } = useRealtime();
   const [filters, setFilters] = useState({ severity: "", type: "", source: "", unread_only: "false", search: "" });
+  const [page, setPage] = useState(1);
 
   const load = async () => {
+    setLoading(true);
     try {
       const response = await notificationsApi.list({
+        paginated: true,
+        page,
+        page_size: 20,
         severity: filters.severity || undefined,
         type: filters.type || undefined,
         source: filters.source || undefined,
@@ -24,16 +33,23 @@ function NotificationsPage() {
         organization_id: user.role === "SUPER_ADMIN" ? activeOrganizationId || undefined : undefined,
         unread_only: filters.unread_only === "true",
       });
-      setNotifications(response.data);
+      setNotifications(response.data.items || []);
+      setMeta(response.data.meta || null);
       setError("");
     } catch (requestError) {
       setError(requestError.response?.data?.detail || "Unable to load notifications");
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     load();
-  }, [filters.severity, filters.type, filters.source, filters.unread_only, filters.search, activeOrganizationId, versions.notifications]);
+  }, [filters.severity, filters.type, filters.source, filters.unread_only, filters.search, activeOrganizationId, versions.notifications, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters.severity, filters.type, filters.source, filters.unread_only, filters.search, activeOrganizationId]);
 
   const unreadCount = notifications.filter((notification) => !notification.is_read).length;
   const grouped = useMemo(() => ({
@@ -84,6 +100,15 @@ function NotificationsPage() {
         </Stack>
       </GlassPanel>
       <Stack spacing={3} sx={{ mt: 3 }}>
+        <PageState
+          loading={loading}
+          error={error}
+          empty={!loading && !error && notifications.length === 0}
+          title="No notifications match this view"
+          description="Try widening the filters or switch back to all alerts."
+          onRetry={load}
+          minHeight={180}
+        />
         {[["Pinned and urgent", grouped.important], ["Recent", grouped.recent], ["Older", grouped.older]].map(([label, items]) => (
           <GlassPanel key={label} title={label} subtitle={`${items.length} notifications`}>
             <Stack spacing={1.3}>
@@ -111,6 +136,7 @@ function NotificationsPage() {
             </Stack>
           </GlassPanel>
         ))}
+        <PaginationControls meta={meta} onChange={setPage} disabled={loading} />
       </Stack>
     </>
   );

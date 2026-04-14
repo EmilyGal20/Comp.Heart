@@ -1,12 +1,15 @@
 import asyncio
+import logging
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from jose import JWTError, jwt
 
 from app.core.config import get_settings
+from app.core.logging import configure_logging
 from app.core.realtime import realtime_manager
 from app.db.session import SessionLocal, initialize_database
 from app.models.user import User
@@ -19,6 +22,8 @@ from app.services.work_management_service import run_recurring_generation
 
 
 settings = get_settings()
+configure_logging(settings.log_level)
+logger = logging.getLogger("compheart.api")
 app = FastAPI(title=settings.app_name, version="1.0.0")
 uploads_path = Path(settings.uploads_dir)
 uploads_path.mkdir(parents=True, exist_ok=True)
@@ -38,6 +43,8 @@ async def recurring_scheduler():
         db = SessionLocal()
         try:
             run_recurring_generation(db)
+        except Exception:
+            logger.exception("Recurring scheduler run failed")
         finally:
             db.close()
 
@@ -52,6 +59,7 @@ def on_startup():
         seed_database(db)
         run_sla_scan(db)
         run_recurring_generation(db)
+        logger.info("Application startup completed")
     finally:
         db.close()
     app.state.recurring_task = loop.create_task(recurring_scheduler())
@@ -71,6 +79,25 @@ async def on_shutdown():
 @app.get("/")
 def root():
     return {"name": settings.app_name, "status": "healthy"}
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.warning("Validation error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=422, content={"detail": "Validation error", "errors": exc.errors()})
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code >= 500:
+        logger.error("HTTP exception on %s %s: %s", request.method, request.url.path, exc.detail)
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 @app.websocket("/ws/live")
@@ -105,13 +132,14 @@ async def live_updates(websocket: WebSocket):
             await websocket.receive_text()
     except WebSocketDisconnect:
         pass
+    except Exception:
+        logger.exception("Realtime websocket failed")
     finally:
         if connection_id is not None:
             realtime_manager.disconnect(connection_id)
         db.close()
 
 
-app.mount("/uploads", StaticFiles(directory=uploads_path), name="uploads")
 app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(organizations.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)

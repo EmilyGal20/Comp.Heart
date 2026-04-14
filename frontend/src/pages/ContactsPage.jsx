@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
-import { Alert, Avatar, Box, Button, Drawer, Grid, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Avatar, Box, Button, Drawer, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { contactsApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
+import PageState from "../components/PageState";
+import PaginationControls from "../components/PaginationControls";
 import PageHeader from "../components/PageHeader";
 
 function ContactsPage() {
@@ -12,20 +15,31 @@ function ContactsPage() {
   const [view, setView] = useState("grid");
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [meta, setMeta] = useState(null);
+  const [page, setPage] = useState(1);
 
   const load = async () => {
+    setLoading(true);
     try {
-      const response = await contactsApi.list({ search: search || undefined });
-      setItems(response.data);
+      const response = await contactsApi.list({ search: search || undefined, paginated: true, page, page_size: view === "grid" ? 18 : 15 });
+      setItems(response.data.items || []);
+      setMeta(response.data.meta || null);
       setError("");
     } catch (requestError) {
       setError(requestError.response?.data?.detail || "Unable to load contacts");
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     load();
-  }, [search]);
+  }, [page, search, view]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, view]);
 
   return (
     <>
@@ -40,6 +54,15 @@ function ContactsPage() {
       />
       {error ? <Alert severity="error" sx={{ mb: 2.5 }}>{error}</Alert> : null}
       <GlassPanel title="Directory" subtitle={`${items.length} visible contacts`}>
+        <PageState
+          loading={loading}
+          error={error}
+          empty={!loading && !error && items.length === 0}
+          title="No contacts matched your search"
+          description="Try a wider name, title, team, or email query."
+          onRetry={load}
+          minHeight={180}
+        />
         {view === "grid" ? (
           <Grid container spacing={2.2}>
             {items.map((item) => (
@@ -66,6 +89,7 @@ function ContactsPage() {
             ))}
           </Stack>
         )}
+        <PaginationControls meta={meta} onChange={setPage} disabled={loading} />
       </GlassPanel>
       <Drawer anchor="right" open={Boolean(selected)} onClose={() => setSelected(null)}>
         <Box sx={{ width: { xs: 340, md: 460 }, p: 3 }}>

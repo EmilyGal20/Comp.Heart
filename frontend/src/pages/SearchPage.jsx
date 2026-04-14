@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Chip, Grid, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Button, Chip, Stack, TextField, Typography } from "@mui/material";
 import { searchApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
+import PageState from "../components/PageState";
 import PageHeader from "../components/PageHeader";
 import { useAuth } from "../store/AuthContext";
 
@@ -11,13 +13,16 @@ function SearchPage() {
   const [mode, setMode] = useState("global");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (query.trim().length < 2) {
       setData(null);
+      setError("");
       return;
     }
     const timeout = window.setTimeout(async () => {
+      setLoading(true);
       try {
         const response = mode === "ai"
           ? await searchApi.ai({ query, organization_id: user.role === "SUPER_ADMIN" ? activeOrganizationId || undefined : undefined })
@@ -26,6 +31,8 @@ function SearchPage() {
         setError("");
       } catch (requestError) {
         setError(requestError.response?.data?.detail || "Unable to search");
+      } finally {
+        setLoading(false);
       }
     }, 220);
     return () => window.clearTimeout(timeout);
@@ -45,7 +52,13 @@ function SearchPage() {
       <GlassPanel title="Search console" subtitle="Natural language works best when you describe the work, person, or process you need">
         <TextField fullWidth label="Ask anything across CompHeart" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Show me overdue onboarding tasks for support" />
       </GlassPanel>
-      {error ? <Alert severity="error" sx={{ mt: 2.5 }}>{error}</Alert> : null}
+      <PageState
+        loading={loading}
+        error={error}
+        empty={!loading && !error && query.trim().length >= 2 && (!data?.groups || data.groups.every((group) => !group.items?.length))}
+        title="No results matched your query"
+        description="Try a different phrase, broader role, or fewer constraints."
+      />
       {data ? (
         <Grid container spacing={3} sx={{ mt: 0.5 }}>
           {data.groups.map((group) => (

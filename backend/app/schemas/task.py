@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.knowledge import KnowledgeRead
 from app.schemas.user import UserRead
@@ -19,7 +21,7 @@ class TaskCommentRead(BaseModel):
 
 
 class TaskCommentCreate(BaseModel):
-    content: str
+    content: str = Field(min_length=1, max_length=4000)
 
 
 class TaskActivityRead(BaseModel):
@@ -57,55 +59,80 @@ class TaskWatcherRead(BaseModel):
 
 
 class TaskAIActionRequest(BaseModel):
-    action: str
+    action: str = Field(min_length=3, max_length=80)
 
 
 class TaskCreate(BaseModel):
-    title: str
-    description: str
+    title: str = Field(min_length=4, max_length=220)
+    description: str = Field(min_length=4, max_length=10000)
     organization_id: Optional[int] = None
-    status: str = "TODO"
-    priority: str = "medium"
-    tags: List[str] = []
+    status: Literal["TODO", "IN_PROGRESS", "BLOCKED", "REVIEW", "DONE"] = "TODO"
+    priority: Literal["low", "medium", "high", "critical"] = "medium"
+    tags: List[str] = Field(default_factory=list)
     assignee_id: Optional[int] = None
     creator_id: Optional[int] = None
     due_at: Optional[datetime] = None
-    sla_hours: int = 24
+    sla_hours: int = Field(default=24, ge=1, le=720)
     related_knowledge_id: Optional[int] = None
-    related_knowledge_ids: List[int] = []
-    external_refs: List[str] = []
+    related_knowledge_ids: List[int] = Field(default_factory=list)
+    external_refs: List[str] = Field(default_factory=list, max_length=10)
     parent_task_id: Optional[int] = None
     sprint_id: Optional[int] = None
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, value):
+        return [item.strip()[:40] for item in value if item and item.strip()][:12]
+
+    @field_validator("external_refs")
+    @classmethod
+    def validate_refs(cls, value):
+        return [item.strip()[:500] for item in value if item and item.strip()][:10]
 
 
 class TaskUpdate(BaseModel):
-    title: str
-    description: str
-    status: str
-    priority: str
-    tags: List[str] = []
+    title: str = Field(min_length=4, max_length=220)
+    description: str = Field(min_length=4, max_length=10000)
+    status: Literal["TODO", "IN_PROGRESS", "BLOCKED", "REVIEW", "DONE"]
+    priority: Literal["low", "medium", "high", "critical"]
+    tags: List[str] = Field(default_factory=list)
     assignee_id: Optional[int] = None
     due_at: Optional[datetime] = None
-    sla_hours: int
+    sla_hours: int = Field(ge=1, le=720)
     related_knowledge_id: Optional[int] = None
-    related_knowledge_ids: List[int] = []
-    external_refs: List[str] = []
+    related_knowledge_ids: List[int] = Field(default_factory=list)
+    external_refs: List[str] = Field(default_factory=list, max_length=10)
     parent_task_id: Optional[int] = None
     sprint_id: Optional[int] = None
 
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, value):
+        return [item.strip()[:40] for item in value if item and item.strip()][:12]
+
+    @field_validator("external_refs")
+    @classmethod
+    def validate_refs(cls, value):
+        return [item.strip()[:500] for item in value if item and item.strip()][:10]
+
 
 class TaskStatusUpdate(BaseModel):
-    status: str
+    status: Literal["TODO", "IN_PROGRESS", "BLOCKED", "REVIEW", "DONE"]
 
 
 class TaskSubtaskCreate(BaseModel):
-    title: str
-    description: str = ""
-    priority: str = "medium"
+    title: str = Field(min_length=3, max_length=220)
+    description: str = Field(default="", max_length=5000)
+    priority: Literal["low", "medium", "high", "critical"] = "medium"
     assignee_id: Optional[int] = None
     due_at: Optional[datetime] = None
-    sla_hours: int = 24
-    tags: List[str] = []
+    sla_hours: int = Field(default=24, ge=1, le=720)
+    tags: List[str] = Field(default_factory=list)
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, value):
+        return [item.strip()[:40] for item in value if item and item.strip()][:12]
 
 
 class TaskRead(BaseModel):
@@ -115,7 +142,7 @@ class TaskRead(BaseModel):
     organization_id: int
     status: str
     priority: str
-    tags: List[str] = []
+    tags: List[str] = Field(default_factory=list)
     backlog_order: int = 0
     due_at: Optional[datetime] = None
     sla_hours: int
@@ -128,17 +155,17 @@ class TaskRead(BaseModel):
     assignee: Optional[UserRead] = None
     creator: Optional[UserRead] = None
     related_knowledge: Optional[KnowledgeRead] = None
-    related_knowledge_ids: List[int] = []
-    related_knowledge_items: List[KnowledgeRead] = []
-    external_refs: List[str] = []
-    comments: List[TaskCommentRead] = []
-    activities: List[TaskActivityRead] = []
-    attachments: List[TaskAttachmentRead] = []
-    watchers: List[TaskWatcherRead] = []
-    subtasks: List["TaskReadLight"] = []
-    subtask_progress: dict = {}
-    approvals: List[TaskApprovalRead] = []
-    messages: List[TaskMessageRead] = []
+    related_knowledge_ids: List[int] = Field(default_factory=list)
+    related_knowledge_items: List[KnowledgeRead] = Field(default_factory=list)
+    external_refs: List[str] = Field(default_factory=list)
+    comments: List[TaskCommentRead] = Field(default_factory=list)
+    activities: List[TaskActivityRead] = Field(default_factory=list)
+    attachments: List[TaskAttachmentRead] = Field(default_factory=list)
+    watchers: List[TaskWatcherRead] = Field(default_factory=list)
+    subtasks: List["TaskReadLight"] = Field(default_factory=list)
+    subtask_progress: dict = Field(default_factory=dict)
+    approvals: List[TaskApprovalRead] = Field(default_factory=list)
+    messages: List[TaskMessageRead] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

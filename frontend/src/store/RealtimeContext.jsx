@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Snackbar } from "@mui/material";
 import { useAuth } from "./AuthContext";
+import { API_BASE_URL, APP_AUTH_EXPIRED_EVENT } from "../api/client";
 
 const RealtimeContext = createContext(null);
 
@@ -19,6 +20,9 @@ export function RealtimeProvider({ children }) {
   const { token, user, activeOrganizationId, isAuthenticated } = useAuth();
   const socketRef = useRef(null);
   const reconnectRef = useRef(null);
+  const shouldReconnectRef = useRef(false);
+  const generationRef = useRef(0);
+  const toastKeyRef = useRef("");
   const [connectionState, setConnectionState] = useState("idle");
   const [lastEvent, setLastEvent] = useState(null);
   const [versions, setVersions] = useState({
@@ -33,25 +37,57 @@ export function RealtimeProvider({ children }) {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
+    const closeSocket = (intentional = false) => {
+      shouldReconnectRef.current = !intentional && shouldReconnectRef.current;
+      if (reconnectRef.current) {
+        window.clearTimeout(reconnectRef.current);
+        reconnectRef.current = null;
+      }
+      if (socketRef.current) {
+        const socket = socketRef.current;
+        socketRef.current = null;
+        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+          socket.close(1000, "client_reset");
+        }
+      }
+    };
+
     if (!isAuthenticated || !token || !user) {
+      shouldReconnectRef.current = false;
+      closeSocket(true);
       setConnectionState("idle");
-      if (socketRef.current) socketRef.current.close();
       return undefined;
     }
 
-    let cancelled = false;
+    const url = new URL(API_BASE_URL.replace(/\/api$/, "/ws/live"));
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    url.searchParams.set("token", token);
+    if (user.role === "SUPER_ADMIN" && activeOrganizationId) {
+      url.searchParams.set("scope_org_id", String(activeOrganizationId));
+    }
+
+    shouldReconnectRef.current = true;
     const connect = () => {
-      const scope = user.role === "SUPER_ADMIN" ? `&scope_org_id=${activeOrganizationId || ""}` : "";
-      const socket = new WebSocket(`ws://localhost:7155/ws/live?token=${encodeURIComponent(token)}${scope}`);
+      const generation = ++generationRef.current;
+      const hadSocket = Boolean(socketRef.current);
+      closeSocket(true);
+      setConnectionState(hadSocket ? "reconnecting" : "connecting");
+      const socket = new WebSocket(url.toString());
       socketRef.current = socket;
-      setConnectionState("connecting");
 
       socket.onopen = () => {
-        if (!cancelled) setConnectionState("connected");
+        if (generation !== generationRef.current) return;
+        setConnectionState("connected");
       };
 
       socket.onmessage = (event) => {
-        const payload = JSON.parse(event.data);
+        if (generation !== generationRef.current) return;
+        let payload;
+        try {
+          payload = JSON.parse(event.data);
+        } catch {
+          return;
+        }
         setLastEvent(payload);
         setVersions((previous) => {
           const next = { ...previous };
@@ -62,7 +98,10 @@ export function RealtimeProvider({ children }) {
           });
           return next;
         });
-        if (payload.event_type !== "connection_ready") {
+
+        const toastKey = `${payload.event_type}:${payload.timestamp || ""}:${payload.data?.message || payload.data?.title || ""}`;
+        if (payload.event_type !== "connection_ready" && toastKey !== toastKeyRef.current) {
+          toastKeyRef.current = toastKey;
           setToast({
             severity: payload.event_type === "task_mentioned" ? "info" : payload.data?.severity || "success",
             message: payload.data?.message || payload.data?.title || payload.event_type,
@@ -70,22 +109,38 @@ export function RealtimeProvider({ children }) {
         }
       };
 
-      socket.onclose = () => {
-        if (cancelled) return;
+      socket.onclose = (event) => {
+        if (generation !== generationRef.current) return;
+        socketRef.current = null;
+        if (!shouldReconnectRef.current) {
+          setConnectionState("idle");
+          return;
+        }
+        if (event.code === 4401 || event.code === 4403) {
+          shouldReconnectRef.current = false;
+          setConnectionState("auth_required");
+          window.dispatchEvent(new CustomEvent(APP_AUTH_EXPIRED_EVENT, { detail: { message: "Realtime session expired" } }));
+          return;
+        }
         setConnectionState("reconnecting");
-        reconnectRef.current = window.setTimeout(connect, 2000);
+        if (reconnectRef.current) {
+          window.clearTimeout(reconnectRef.current);
+        }
+        reconnectRef.current = window.setTimeout(connect, 2500);
       };
 
       socket.onerror = () => {
-        socket.close();
+        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+          socket.close();
+        }
       };
     };
 
     connect();
     return () => {
-      cancelled = true;
-      if (reconnectRef.current) window.clearTimeout(reconnectRef.current);
-      if (socketRef.current) socketRef.current.close();
+      shouldReconnectRef.current = false;
+      closeSocket(true);
+      setConnectionState("idle");
     };
   }, [activeOrganizationId, isAuthenticated, token, user]);
 

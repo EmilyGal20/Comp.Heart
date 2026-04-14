@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 
 class AIChatRequest(BaseModel):
-    message: str
+    message: str = Field(min_length=3, max_length=4000)
     conversation_id: Optional[int] = None
 
 
@@ -24,10 +24,15 @@ class AIChatResponse(BaseModel):
 
 
 class AITaskGenerationRequest(BaseModel):
-    prompt: str
-    task_count: int = 3
+    prompt: str = Field(min_length=5, max_length=4000)
+    task_count: int = Field(default=3, ge=1, le=12)
     organization_id: Optional[int] = None
     sprint_id: Optional[int] = None
+
+
+class AISubtaskGenerationRequest(BaseModel):
+    task_id: int = Field(gt=0)
+    task_count: int = Field(default=4, ge=1, le=12)
 
 
 class AITaskSuggestion(BaseModel):
@@ -38,11 +43,25 @@ class AITaskSuggestion(BaseModel):
     suggested_assignee_name: Optional[str] = None
     due_in_days: int = 3
     sla_hours: int = 24
-    tags: List[str] = []
-    related_knowledge_ids: List[int] = []
-    related_knowledge_titles: List[str] = []
+    tags: List[str] = Field(default_factory=list)
+    related_knowledge_ids: List[int] = Field(default_factory=list)
+    related_knowledge_titles: List[str] = Field(default_factory=list)
     risk_level: str = "medium"
-    rationale: str
+    rationale: str = Field(min_length=3, max_length=1200)
+
+    @field_validator("priority")
+    @classmethod
+    def validate_priority(cls, value: str):
+        if value not in {"low", "medium", "high", "critical"}:
+            raise ValueError("Invalid task priority")
+        return value
+
+    @field_validator("risk_level")
+    @classmethod
+    def validate_risk_level(cls, value: str):
+        if value not in {"low", "medium", "high", "critical"}:
+            raise ValueError("Invalid risk level")
+        return value
 
 
 class AITaskGenerationResponse(BaseModel):
@@ -67,7 +86,7 @@ class AIConversationRead(BaseModel):
     organization_id: int
     user_id: Optional[int] = None
     created_at: datetime
-    messages: List[AIMessageRead] = []
+    messages: List[AIMessageRead] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

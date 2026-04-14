@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from "@mui/material";
 import { meetingsApi } from "../api/endpoints";
+import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
+import PageState from "../components/PageState";
+import PaginationControls from "../components/PaginationControls";
 import PageHeader from "../components/PageHeader";
 
 const emptyMeeting = { title: "", raw_notes: "" };
@@ -12,18 +15,25 @@ function MeetingsPage() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyMeeting);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [meta, setMeta] = useState(null);
+  const [page, setPage] = useState(1);
 
   const load = async () => {
+    setLoading(true);
     try {
-      const response = await meetingsApi.list();
-      setItems(response.data);
+      const response = await meetingsApi.list({ paginated: true, page, page_size: 12 });
+      setItems(response.data.items || []);
+      setMeta(response.data.meta || null);
       setError("");
     } catch (requestError) {
       setError(requestError.response?.data?.detail || "Unable to load meetings");
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [page]);
 
   const summarize = async () => {
     const response = await meetingsApi.summarize(form);
@@ -40,6 +50,15 @@ function MeetingsPage() {
       <Grid container spacing={3}>
         <Grid item xs={12} lg={5}>
           <GlassPanel title="Recent meeting summaries" subtitle="Structured meeting memory for your organization">
+            <PageState
+              loading={loading}
+              error={error}
+              empty={!loading && !error && items.length === 0}
+              title="No meeting summaries yet"
+              description="Paste notes or a transcript to create the first one."
+              onRetry={load}
+              minHeight={180}
+            />
             <Stack spacing={1.3}>
               {items.map((item) => (
                 <Box key={item.id} onClick={() => setSelected(item)} sx={{ p: 1.7, borderRadius: 3.5, cursor: "pointer", bgcolor: "rgba(255,255,255,0.03)" }}>
@@ -48,6 +67,7 @@ function MeetingsPage() {
                 </Box>
               ))}
             </Stack>
+            <PaginationControls meta={meta} onChange={setPage} disabled={loading} />
           </GlassPanel>
         </Grid>
         <Grid item xs={12} lg={7}>

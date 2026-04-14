@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 from app.schemas.organization import OrganizationRead
 
@@ -40,23 +40,23 @@ class UserRead(BaseModel):
 
 
 class UserCreate(BaseModel):
-    full_name: str
-    email: str
-    role: str
-    title: str
-    responsibilities: str = ""
+    full_name: str = Field(min_length=2, max_length=150)
+    email: EmailStr
+    role: str = Field(min_length=4, max_length=80)
+    title: str = Field(min_length=2, max_length=120)
+    responsibilities: str = Field(default="", max_length=2000)
     team_id: Optional[int] = None
     organization_id: Optional[int] = None
-    password: str = "demo123"
+    password: str = Field(default="demo123", min_length=6, max_length=128)
     is_active: bool = True
 
 
 class UserUpdate(BaseModel):
-    full_name: str
-    email: str
-    role: str
-    title: str
-    responsibilities: str = ""
+    full_name: str = Field(min_length=2, max_length=150)
+    email: EmailStr
+    role: str = Field(min_length=4, max_length=80)
+    title: str = Field(min_length=2, max_length=120)
+    responsibilities: str = Field(default="", max_length=2000)
     team_id: Optional[int] = None
     organization_id: Optional[int] = None
     is_active: bool = True
@@ -70,8 +70,8 @@ class UserDashboard(BaseModel):
     profile: UserRead
     summary: dict
     my_tasks: list[dict]
-    watched_tasks: list[dict] = []
-    mentions: list[dict] = []
+    watched_tasks: list[dict] = Field(default_factory=list)
+    mentions: list[dict] = Field(default_factory=list)
     recent_notifications: list[dict]
     recommended_knowledge: list[dict]
     recent_activity: list[dict]

@@ -42,6 +42,8 @@ export const tasksApi = {
   addComment: (id, payload) => api.post(`/tasks/${id}/comments`, payload),
   activity: (id) => api.get(`/tasks/${id}/activity`),
   attachments: (id) => api.get(`/tasks/${id}/attachments`),
+  downloadAttachment: (taskId, attachmentId) =>
+    api.get(`/tasks/${taskId}/attachments/${attachmentId}/download`, { responseType: "blob" }),
   uploadAttachment: (id, file) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -61,7 +63,7 @@ export const workApi = {
   createSprint: (payload) => api.post("/work/sprints", payload),
   updateSprintStatus: (id, payload) => api.patch(`/work/sprints/${id}/status`, payload),
   backlog: (params) => api.get("/work/backlog", { params }),
-  reorderBacklog: (orderedIds, params) => api.patch("/work/backlog/reorder", orderedIds, { params }),
+  reorderBacklog: (orderedIds, params) => api.patch("/work/backlog/reorder", { ordered_ids: orderedIds }, { params }),
   assignTaskSprint: (taskId, sprintId) => api.patch(`/work/tasks/${taskId}/sprint`, null, { params: { sprint_id: sprintId } }),
   templates: (params) => api.get("/work/templates", { params }),
   createTemplate: (payload) => api.post("/work/templates", payload),
@@ -71,7 +73,7 @@ export const workApi = {
   runRecurring: () => api.post("/work/recurring/run"),
   requestApproval: (taskId) => api.post("/work/approvals", { task_id: taskId }),
   updateApproval: (id, status) => api.patch(`/work/approvals/${id}`, { status }),
-  messages: (taskId) => api.get(`/work/tasks/${taskId}/messages`),
+  messages: (taskId, params) => api.get(`/work/tasks/${taskId}/messages`, { params }),
   sendMessage: (taskId, message) => api.post(`/work/tasks/${taskId}/messages`, { message }),
   search: (params) => api.get("/work/search", { params }),
   reports: (params) => api.get("/work/reports/summary", { params }),
@@ -93,7 +95,7 @@ export const notificationsApi = {
   list: (params) => api.get("/notifications", { params }),
   markRead: (id) => api.patch(`/notifications/${id}/read`),
   markAllRead: (params) => api.patch("/notifications/read-all", null, { params }),
-  bulkRead: (ids) => api.patch("/notifications/bulk-read", ids),
+  bulkRead: (ids) => api.patch("/notifications/bulk-read", { ids }),
 };
 
 export const aiApi = {
@@ -176,7 +178,7 @@ export const announcementsApi = {
 };
 
 export const meetingsApi = {
-  list: () => api.get("/meetings"),
+  list: (params) => api.get("/meetings", { params }),
   summarize: (payload) => api.post("/meetings/summarize", payload),
   detail: (id) => api.get(`/meetings/${id}`),
   createTasks: (id) => api.post(`/meetings/${id}/tasks`),

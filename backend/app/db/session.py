@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy import create_engine
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -6,6 +8,7 @@ from app.core.config import get_settings
 
 
 settings = get_settings()
+logger = logging.getLogger("compheart.db")
 
 engine = create_engine(
     settings.database_url,
@@ -85,5 +88,10 @@ def initialize_database():
         if org_count and (chat_count == 0 or integration_count == 0 or workspace_count == 0):
             needs_reset = True
     if needs_reset:
+        if not settings.auto_reset_db_on_schema_change:
+            raise RuntimeError(
+                "Database schema drift detected. Set AUTO_RESET_DB_ON_SCHEMA_CHANGE=true or reset the local database explicitly."
+            )
+        logger.warning("Resetting local database because the current schema is incompatible with the application models.")
         Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
