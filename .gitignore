@@ -18,6 +18,10 @@ env/
 # =========================
 backend/compheart.db
 backend/*.db
+backend/*.backup
+backend/*.bak
+backend/*_backup.db
+backend/*_temp.db
 
 # =========================
 # Node / React / Vite
