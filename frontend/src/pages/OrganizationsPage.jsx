@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from "@mui/material";
 import { organizationsApi } from "../api/endpoints";
 import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
@@ -24,12 +24,14 @@ function OrganizationsPage() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState(null);
 
   const load = async () => {
     setLoading(true);
     try {
       const response = await organizationsApi.list();
-      setOrganizations(response.data || []);
+      setOrganizations(Array.isArray(response.data) ? response.data : []);
       setError("");
     } catch (requestError) {
       setError(requestError.response?.data?.detail || "Unable to load organizations");
@@ -62,6 +64,7 @@ function OrganizationsPage() {
 
   const save = async () => {
     try {
+      setSaving(true);
       setError("");
       if (selected) {
         await organizationsApi.update(selected.id, form);
@@ -72,19 +75,31 @@ function OrganizationsPage() {
       await load();
     } catch (requestError) {
       setError(requestError.response?.data?.detail || "Unable to save organization");
+    } finally {
+      setSaving(false);
     }
   };
 
   const toggleStatus = async (entry) => {
-    await organizationsApi.updateStatus(entry.organization.id, { is_active: !entry.organization.is_active });
-    await load();
+    try {
+      setTogglingId(entry.organization.id);
+      await organizationsApi.updateStatus(entry.organization.id, { is_active: !entry.organization.is_active });
+      await load();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "Unable to update organization status");
+    } finally {
+      setTogglingId(null);
+    }
   };
 
-  const totals = organizations.reduce((accumulator, entry) => ({
-    users: accumulator.users + entry.user_count,
-    tasks: accumulator.tasks + entry.task_count,
-    overdue: accumulator.overdue + entry.overdue_tasks,
-  }), { users: 0, tasks: 0, overdue: 0 });
+  const totals = organizations.reduce(
+    (accumulator, entry) => ({
+      users: accumulator.users + entry.user_count,
+      tasks: accumulator.tasks + entry.task_count,
+      overdue: accumulator.overdue + entry.overdue_tasks,
+    }),
+    { users: 0, tasks: 0, overdue: 0 }
+  );
 
   return (
     <>
@@ -96,10 +111,16 @@ function OrganizationsPage() {
       />
       {error && !loading ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
       <Grid container spacing={2.5}>
-        <Grid item xs={12} md={4}><MetricCard label="Organizations" value={organizations.length} helper="Tenant workspaces" accent="rgba(155,124,255,0.25)" /></Grid>
-        <Grid item xs={12} md={4}><MetricCard label="Users" value={totals.users} helper="People across all orgs" accent="rgba(61,200,255,0.25)" /></Grid>
-        <Grid item xs={12} md={4}><MetricCard label="Overdue tasks" value={totals.overdue} helper="Cross-org risk pressure" accent="rgba(255,107,122,0.23)" /></Grid>
-        <Grid item xs={12}>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <MetricCard label="Organizations" value={organizations.length} helper="Tenant workspaces" accent="rgba(155,124,255,0.25)" />
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <MetricCard label="Users" value={totals.users} helper="People across all orgs" accent="rgba(61,200,255,0.25)" />
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <MetricCard label="Overdue tasks" value={totals.overdue} helper="Cross-org risk pressure" accent="rgba(255,107,122,0.23)" />
+        </Grid>
+        <Grid size={{ xs: 12 }}>
           <PageState
             loading={loading}
             error={error}
@@ -109,35 +130,44 @@ function OrganizationsPage() {
             onRetry={load}
           />
         </Grid>
-        {!loading && !error ? organizations.map((entry) => (
-          <Grid item xs={12} lg={6} key={entry.organization.id}>
-            <GlassPanel
-              title={entry.organization.name}
-              subtitle={`${entry.organization.company_type} • ${entry.organization.industry}`}
-              action={<Chip label={entry.organization.is_active ? "Active" : "Inactive"} color={entry.organization.is_active ? "success" : "default"} />}
-            >
-              <Stack spacing={1.2}>
-                <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.66)" }}>{entry.organization.description}</Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  <Chip size="small" label={`Slug ${entry.organization.slug}`} variant="outlined" />
-                  <Chip size="small" label={`${entry.user_count} users`} />
-                  <Chip size="small" label={`${entry.team_count} teams`} />
-                  <Chip size="small" label={`${entry.task_count} tasks`} />
-                  <Chip size="small" label={`${entry.overdue_tasks} overdue`} color={entry.overdue_tasks ? "error" : "default"} />
-                </Stack>
-                <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.5)" }}>
-                  Latest activity: {entry.latest_activity}
-                </Typography>
-                <Stack direction="row" spacing={1}>
-                  <Button variant="outlined" onClick={() => openEdit(entry)}>Edit</Button>
-                  <Button variant="text" color={entry.organization.is_active ? "warning" : "success"} onClick={() => toggleStatus(entry)}>
-                    {entry.organization.is_active ? "Deactivate" : "Activate"}
-                  </Button>
-                </Stack>
-              </Stack>
-            </GlassPanel>
-          </Grid>
-        )) : null}
+        {!loading && !error
+          ? organizations.map((entry) => (
+              <Grid size={{ xs: 12, lg: 6 }} key={entry.organization.id}>
+                <GlassPanel
+                  title={entry.organization.name}
+                  subtitle={`${entry.organization.company_type} • ${entry.organization.industry}`}
+                  action={<Chip label={entry.organization.is_active ? "Active" : "Inactive"} color={entry.organization.is_active ? "success" : "default"} />}
+                >
+                  <Stack spacing={1.2}>
+                    <Typography variant="body2" color="text.secondary">
+                      {entry.organization.description}
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Chip size="small" label={`Slug ${entry.organization.slug}`} variant="outlined" />
+                      <Chip size="small" label={`${entry.user_count} users`} />
+                      <Chip size="small" label={`${entry.team_count} teams`} />
+                      <Chip size="small" label={`${entry.task_count} tasks`} />
+                      <Chip size="small" label={`${entry.overdue_tasks} overdue`} color={entry.overdue_tasks ? "error" : "default"} />
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary">
+                      Latest activity: {entry.latest_activity}
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                      <Button variant="outlined" onClick={() => openEdit(entry)}>Edit</Button>
+                      <Button
+                        variant="text"
+                        color={entry.organization.is_active ? "warning" : "success"}
+                        onClick={() => toggleStatus(entry)}
+                        disabled={togglingId === entry.organization.id}
+                      >
+                        {entry.organization.is_active ? "Deactivate" : "Activate"}
+                      </Button>
+                    </Stack>
+                  </Stack>
+                </GlassPanel>
+              </Grid>
+            ))
+          : null}
       </Grid>
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>{selected ? "Edit organization" : "Create organization"}</DialogTitle>
@@ -152,7 +182,13 @@ function OrganizationsPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={save} variant="contained">Save</Button>
+          <Button
+            onClick={save}
+            variant="contained"
+            disabled={saving || !form.name.trim() || !form.slug.trim() || !form.company_type.trim() || !form.industry.trim()}
+          >
+            {saving ? "Saving..." : "Save"}
+          </Button>
         </DialogActions>
       </Dialog>
     </>

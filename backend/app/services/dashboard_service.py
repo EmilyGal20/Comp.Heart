@@ -28,6 +28,14 @@ def _notification_feed(db: Session, current_user, org_id: int | None):
 def get_dashboard_summary(db: Session, current_user, organization_id: int | None = None):
     scoped_org_id = organization_id if current_user.role == ROLE_SUPER_ADMIN and organization_id else current_user.organization_id
     tasks = list_tasks(db, current_user=current_user, organization_id=scoped_org_id)
+    open_tasks = sum(1 for task in tasks if task.status != "DONE")
+    overdue_tasks = sum(1 for task in tasks if task.sla_status == "breached")
+    warning_tasks = sum(1 for task in tasks if task.sla_status == "warning")
+    todo_tasks = sum(1 for task in tasks if task.status == "TODO")
+    in_progress_tasks = sum(1 for task in tasks if task.status == "IN_PROGRESS")
+    blocked_tasks = sum(1 for task in tasks if task.status == "BLOCKED")
+    review_tasks = sum(1 for task in tasks if task.status == "REVIEW")
+    done_tasks = sum(1 for task in tasks if task.status == "DONE")
     recent_notifications = _notification_feed(db, current_user, scoped_org_id)
     recent_automation_events = get_recent_automation_events(db)
     if scoped_org_id is not None:
@@ -56,9 +64,9 @@ def get_dashboard_summary(db: Session, current_user, organization_id: int | None
         "total_users": user_count,
         "total_knowledge_items": knowledge_count,
         "total_tasks": task_count,
-        "open_tasks": len([task for task in tasks if task.status != "DONE"]),
-        "overdue_tasks": len([task for task in tasks if task.sla_status == "breached"]),
-        "sla_warning_tasks": len([task for task in tasks if task.sla_status == "warning"]),
+        "open_tasks": open_tasks,
+        "overdue_tasks": overdue_tasks,
+        "sla_warning_tasks": warning_tasks,
         "unread_notifications": unread,
         "active_automation_rules": active_automations,
         "recent_automation_events": recent_automation_events,
@@ -73,16 +81,16 @@ def get_dashboard_summary(db: Session, current_user, organization_id: int | None
             for notification in recent_notifications
         ],
         "task_breakdown": {
-            "TODO": len([task for task in tasks if task.status == "TODO"]),
-            "IN_PROGRESS": len([task for task in tasks if task.status == "IN_PROGRESS"]),
-            "BLOCKED": len([task for task in tasks if task.status == "BLOCKED"]),
-            "REVIEW": len([task for task in tasks if task.status == "REVIEW"]),
-            "DONE": len([task for task in tasks if task.status == "DONE"]),
+            "TODO": todo_tasks,
+            "IN_PROGRESS": in_progress_tasks,
+            "BLOCKED": blocked_tasks,
+            "REVIEW": review_tasks,
+            "DONE": done_tasks,
         },
         "focus_items": [
             {
                 "title": task.title,
-                "subtitle": task.description[:120],
+                "subtitle": (task.description or "")[:120],
                 "priority": task.priority,
                 "sla_status": task.sla_status,
                 "risk_score": getattr(task, "risk_score", 0),

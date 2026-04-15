@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Button, Chip, Stack } from "@mui/material";
 
 function PaginationControls({ meta, onChange, disabled = false }) {
@@ -7,7 +8,7 @@ function PaginationControls({ meta, onChange, disabled = false }) {
   const totalPages = Math.max(meta.total_pages || 0, 1);
 
   return (
-    <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end" sx={{ mt: 2 }}>
+    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "stretch", sm: "center" }} justifyContent="flex-end" sx={{ mt: 2.5 }}>
       <Chip size="small" variant="outlined" label={`${meta.total} total`} />
       <Button size="small" variant="outlined" disabled={disabled || page <= 1} onClick={() => onChange(page - 1)}>
         Previous
@@ -20,4 +21,4 @@ function PaginationControls({ meta, onChange, disabled = false }) {
   );
 }
 
-export default PaginationControls;
+export default memo(PaginationControls);

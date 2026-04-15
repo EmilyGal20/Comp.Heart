@@ -1,9 +1,11 @@
 import axios from "axios";
 
 const STORAGE_KEY = "compheart-session";
-export const API_BASE_URL = "http://localhost:7155/api";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:7155/api";
 export const APP_AUTH_EXPIRED_EVENT = "compheart:auth-expired";
 export const APP_API_ERROR_EVENT = "compheart:api-error";
+
+const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -24,9 +26,18 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const status = error?.response?.status;
     const message = error?.response?.data?.detail || error?.message || "Request failed";
+    const method = String(error?.config?.method || "get").toLowerCase();
+    const retryable = (!status || status >= 500) && ["get", "head"].includes(method);
+    const attempt = error?.config?._retryAttempt || 0;
+
+    if (retryable && attempt < 2 && typeof window !== "undefined") {
+      error.config._retryAttempt = attempt + 1;
+      await sleep(250 * (attempt + 1));
+      return api.request(error.config);
+    }
 
     if (status === 401 && typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent(APP_AUTH_EXPIRED_EVENT, { detail: { message } }));

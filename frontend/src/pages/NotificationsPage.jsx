@@ -14,6 +14,7 @@ function NotificationsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [meta, setMeta] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
   const { activeOrganizationId, user } = useAuth();
   const { versions, connectionState } = useRealtime();
   const [filters, setFilters] = useState({ severity: "", type: "", source: "", unread_only: "false", search: "" });
@@ -60,9 +61,16 @@ function NotificationsPage() {
 
   const bulkRead = async () => {
     if (!selectedIds.length) return;
-    await notificationsApi.bulkRead(selectedIds);
-    setSelectedIds([]);
-    await load();
+    try {
+      setActionLoading(true);
+      await notificationsApi.bulkRead(selectedIds);
+      setSelectedIds([]);
+      await load();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "Unable to update notifications");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   return (
@@ -74,14 +82,31 @@ function NotificationsPage() {
         actions={[
           <Chip key="unread" label={`${unreadCount} unread`} color={unreadCount ? "error" : "default"} />,
           <Chip key="live" label={`Realtime ${connectionState}`} color={connectionState === "connected" ? "success" : "default"} variant="outlined" />,
-          <Button key="all-read" variant="outlined" onClick={() => notificationsApi.markAllRead({ organization_id: user.role === "SUPER_ADMIN" ? activeOrganizationId || undefined : undefined }).then(load)}>Mark all read</Button>,
+          <Button
+            key="all-read"
+            variant="outlined"
+            disabled={actionLoading}
+            onClick={async () => {
+              try {
+                setActionLoading(true);
+                await notificationsApi.markAllRead({ organization_id: user.role === "SUPER_ADMIN" ? activeOrganizationId || undefined : undefined });
+                await load();
+              } catch (requestError) {
+                setError(requestError.response?.data?.detail || "Unable to update notifications");
+              } finally {
+                setActionLoading(false);
+              }
+            }}
+          >
+            Mark all read
+          </Button>,
         ]}
       />
       {error ? <Alert severity="error" sx={{ mb: 2.5 }}>{error}</Alert> : null}
       <GlassPanel
         title="Filters"
         subtitle="Search and narrow alerts by severity, type, source, and read state"
-        action={<Button variant="contained" disabled={!selectedIds.length} onClick={bulkRead}>Mark selected read</Button>}
+        action={<Button variant="contained" disabled={!selectedIds.length || actionLoading} onClick={bulkRead}>{actionLoading ? "Updating..." : "Mark selected read"}</Button>}
       >
         <Stack direction={{ xs: "column", lg: "row" }} spacing={1.2} flexWrap="wrap" useFlexGap>
           <TextField size="small" label="Search" value={filters.search} onChange={(event) => setFilters((previous) => ({ ...previous, search: event.target.value }))} />
@@ -115,7 +140,7 @@ function NotificationsPage() {
               {items.length ? items.map((notification) => {
                 const selected = selectedIds.includes(notification.id);
                 return (
-                  <Box key={notification.id} onClick={() => setSelectedIds((previous) => selected ? previous.filter((id) => id !== notification.id) : [...previous, notification.id])} sx={{ p: 1.8, borderRadius: 3.5, cursor: "pointer", bgcolor: selected ? "rgba(116,184,255,0.12)" : notification.is_read ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.06)", border: "1px solid rgba(148,163,184,0.08)" }}>
+                  <Box key={notification.id} onClick={() => setSelectedIds((previous) => selected ? previous.filter((id) => id !== notification.id) : [...previous, notification.id])} sx={{ p: 1.8, borderRadius: 2.5, cursor: "pointer", bgcolor: selected ? "rgba(116,184,255,0.12)" : notification.is_read ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.06)", border: "1px solid rgba(148,163,184,0.08)" }}>
                     <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.4}>
                       <Box>
                         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 0.8 }}>
@@ -124,15 +149,15 @@ function NotificationsPage() {
                           <Chip size="small" variant="outlined" label={notification.type} />
                           {notification.is_org_wide ? <Chip size="small" variant="outlined" label="Org-wide" /> : null}
                         </Stack>
-                        <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.68)" }}>{notification.message}</Typography>
+                        <Typography variant="body2" color="text.secondary">{notification.message}</Typography>
                       </Box>
                       <Stack direction="row" spacing={1} alignItems="center">
-                        {!notification.is_read ? <Button size="small" onClick={(event) => { event.stopPropagation(); notificationsApi.markRead(notification.id).then(load); }}>Mark read</Button> : <Chip size="small" variant="outlined" label="Read" />}
+                        {!notification.is_read ? <Button size="small" disabled={actionLoading} onClick={async (event) => { event.stopPropagation(); try { setActionLoading(true); await notificationsApi.markRead(notification.id); await load(); } catch (requestError) { setError(requestError.response?.data?.detail || "Unable to update notifications"); } finally { setActionLoading(false); } }}>Mark read</Button> : <Chip size="small" variant="outlined" label="Read" />}
                       </Stack>
                     </Stack>
                   </Box>
                 );
-              }) : <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.66)" }}>Nothing here right now.</Typography>}
+              }) : <Typography variant="body2" color="text.secondary">Nothing here right now.</Typography>}
             </Stack>
           </GlassPanel>
         ))}

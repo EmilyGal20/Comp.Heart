@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Chip } from "@mui/material";
 
 const colorMap = {
@@ -17,7 +18,7 @@ const colorMap = {
 };
 
 function StatusPill({ value }) {
-  return <Chip size="small" label={String(value).replaceAll("_", " ")} color={colorMap[value] || "default"} />;
+  return <Chip size="small" label={String(value || "").replaceAll("_", " ")} color={colorMap[value] || "default"} />;
 }
 
-export default StatusPill;
+export default memo(StatusPill);

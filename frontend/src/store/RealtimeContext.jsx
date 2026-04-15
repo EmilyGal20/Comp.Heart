@@ -46,12 +46,13 @@ export function RealtimeProvider({ children }) {
       if (socketRef.current) {
         const socket = socketRef.current;
         socketRef.current = null;
-        // if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-        //   socket.close(1000, "client_reset");
-        // }
-        if (socket.readyState === WebSocket.OPEN) {
-  socket.close(1000, "client_reset");
-}
+        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+          try {
+            socket.close(1000, "client_reset");
+          } catch {
+            // Ignore socket close races.
+          }
+        }
       }
     };
 
@@ -80,6 +81,10 @@ export function RealtimeProvider({ children }) {
 
       socket.onopen = () => {
         if (generation !== generationRef.current) return;
+        if (reconnectRef.current) {
+          window.clearTimeout(reconnectRef.current);
+          reconnectRef.current = null;
+        }
         setConnectionState("connected");
       };
 

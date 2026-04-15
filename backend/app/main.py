@@ -10,6 +10,7 @@ from jose import JWTError, jwt
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging
+from app.core.rate_limit import InMemoryRateLimiter
 from app.core.realtime import realtime_manager
 from app.db.session import SessionLocal, initialize_database
 from app.models.user import User
@@ -33,6 +34,7 @@ logger = logging.getLogger("compheart.api")
 app = FastAPI(title=settings.app_name, version="1.0.0")
 uploads_path = Path(settings.uploads_dir)
 uploads_path.mkdir(parents=True, exist_ok=True)
+rate_limiter = InMemoryRateLimiter(settings.rate_limit_requests, settings.rate_limit_window_seconds)
 
 # app.add_middleware(
 #     CORSMiddleware,
@@ -56,6 +58,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def basic_rate_limit(request: Request, call_next):
+    if not settings.rate_limit_enabled or not request.url.path.startswith(settings.api_prefix):
+        return await call_next(request)
+    client_host = request.client.host if request.client else "unknown"
+    bucket_key = f"{client_host}:{request.method}:{request.url.path}"
+    if not rate_limiter.allow(bucket_key):
+        return JSONResponse(
+            status_code=429,
+            content={
+                "detail": "Too many requests",
+                "error": "Too many requests",
+                "code": "RATE_LIMITED",
+            },
+        )
+    return await call_next(request)
+
 
 async def recurring_scheduler():
     while True:
@@ -116,20 +137,40 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
     return JSONResponse(
         status_code=422,
-        content={"detail": "Validation error", "errors": exc.errors()},
+        content={
+            "detail": "Validation error",
+            "error": "Validation error",
+            "code": "VALIDATION_ERROR",
+            "errors": exc.errors(),
+        },
     )
     
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code >= 500:
         logger.error("HTTP exception on %s %s: %s", request.method, request.url.path, exc.detail)
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    error_code = "HTTP_ERROR"
+    if exc.status_code == 401:
+        error_code = "UNAUTHORIZED"
+    elif exc.status_code == 403:
+        error_code = "FORBIDDEN"
+    elif exc.status_code == 404:
+        error_code = "NOT_FOUND"
+    elif exc.status_code == 429:
+        error_code = "RATE_LIMITED"
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "error": exc.detail, "code": error_code},
+    )
 
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
-    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "error": "Internal server error", "code": "INTERNAL_SERVER_ERROR"},
+    )
 
 
 @app.websocket("/ws/live")

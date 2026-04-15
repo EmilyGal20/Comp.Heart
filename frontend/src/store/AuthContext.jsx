@@ -21,6 +21,24 @@ export function AuthProvider({ children }) {
   const [scopedOrganizationId, setScopedOrganizationId] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const persistSession = (nextToken, nextScopedOrganizationId) => {
+    if (!nextToken) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ token: nextToken, scopedOrganizationId: nextScopedOrganizationId || null })
+    );
+  };
+
+  const clearSession = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setToken("");
+    setUser(null);
+    setScopedOrganizationId(null);
+  };
+
   const refreshOrganizations = async () => {
     const response = await authApi.organizations();
     setOrganizations(response.data);
@@ -37,13 +55,21 @@ export function AuthProvider({ children }) {
     setToken(stored.token);
     try {
       const [meResponse, orgsResponse] = await Promise.all([authApi.me(), authApi.organizations()]);
-      setUser(meResponse.data);
-      setOrganizations(orgsResponse.data);
-      setScopedOrganizationId(stored.scopedOrganizationId || null);
+      const nextUser = meResponse.data;
+      const nextOrganizations = orgsResponse.data;
+      const requestedScopeId = stored.scopedOrganizationId || null;
+      const resolvedScopeId =
+        nextUser.role === "SUPER_ADMIN" &&
+        requestedScopeId &&
+        nextOrganizations.some((organization) => (organization.organization?.id || organization.id) === requestedScopeId)
+          ? requestedScopeId
+          : null;
+      setUser(nextUser);
+      setOrganizations(nextOrganizations);
+      setScopedOrganizationId(resolvedScopeId);
+      persistSession(stored.token, resolvedScopeId);
     } catch {
-      localStorage.removeItem(STORAGE_KEY);
-      setToken("");
-      setUser(null);
+      clearSession();
       await refreshOrganizations();
     } finally {
       setLoading(false);
@@ -56,10 +82,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const handleExpired = () => {
-      localStorage.removeItem(STORAGE_KEY);
-      setToken("");
-      setUser(null);
-      setScopedOrganizationId(null);
+      clearSession();
       setLoading(false);
     };
 
@@ -79,16 +102,13 @@ export function AuthProvider({ children }) {
     setToken(nextToken);
     setUser(nextUser);
     setScopedOrganizationId(scopedOrg);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: nextToken, scopedOrganizationId: scopedOrg }));
+    persistSession(nextToken, scopedOrg);
     await refreshOrganizations();
     return response.data;
   };
 
   const logout = async () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setToken("");
-    setUser(null);
-    setScopedOrganizationId(null);
+    clearSession();
     await refreshOrganizations();
   };
 
@@ -96,7 +116,7 @@ export function AuthProvider({ children }) {
     const nextValue = organizationId || null;
     setScopedOrganizationId(nextValue);
     if (token) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ token, scopedOrganizationId: nextValue }));
+      persistSession(token, nextValue);
     }
   };
 

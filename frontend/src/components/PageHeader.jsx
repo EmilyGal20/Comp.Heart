@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Box, Stack, Typography } from "@mui/material";
 
 function PageHeader({ eyebrow, title, description, actions }) {
@@ -15,7 +16,7 @@ function PageHeader({ eyebrow, title, description, actions }) {
         <Typography variant="h4" sx={{ mb: 1.25 }}>
           {title}
         </Typography>
-        <Typography variant="body1" sx={{ color: "rgba(226, 232, 240, 0.72)", maxWidth: 760, lineHeight: 1.7 }}>
+        <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 760, lineHeight: 1.7 }}>
           {description}
         </Typography>
       </Box>
@@ -24,4 +25,4 @@ function PageHeader({ eyebrow, title, description, actions }) {
   );
 }
 
-export default PageHeader;
+export default memo(PageHeader);

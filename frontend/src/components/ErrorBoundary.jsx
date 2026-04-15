@@ -33,7 +33,7 @@ class ErrorBoundary extends React.Component {
             <Alert severity="error">
               {this.state.error?.message || "A rendering error interrupted the page."}
             </Alert>
-            <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.66)" }}>
+            <Typography variant="body2" color="text.secondary">
               The app stayed mounted, but this section failed safely. You can retry without losing the whole session.
             </Typography>
             <Stack direction="row" spacing={1.2}>

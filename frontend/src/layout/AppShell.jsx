@@ -45,6 +45,8 @@ import {
   MenuItem,
   Select,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
   TextField,
   Toolbar,
   Typography,
@@ -54,6 +56,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
+import { useThemeMode } from "../store/ThemeModeContext";
 import { workApi } from "../api/endpoints";
 
 const drawerWidth = 292;
@@ -96,6 +99,7 @@ function AppShell({ children }) {
   const navigate = useNavigate();
   const { user, logout, organizations, activeOrganizationId, scopedOrganization, setScopedOrganizationId } = useAuth();
   const { connectionState, versions } = useRealtime();
+  const { themeMode, setThemeMode } = useThemeMode();
 
   const allowedNavItems = useMemo(
     () => navItems.filter((item) => item.roles.includes(user.role)),
@@ -124,17 +128,30 @@ function AppShell({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!paletteOpen || !searchQuery.trim()) {
+    const trimmedQuery = searchQuery.trim();
+    let active = true;
+    if (!paletteOpen || !trimmedQuery) {
       setSearchResults([]);
       return;
     }
     const timeout = window.setTimeout(() => {
       workApi.search({
-        q: searchQuery,
+        q: trimmedQuery,
         organization_id: user.role === "SUPER_ADMIN" ? activeOrganizationId || undefined : undefined,
-      }).then((response) => setSearchResults(response.data));
+      })
+        .then((response) => {
+          if (!active) return;
+          setSearchResults(Array.isArray(response.data) ? response.data : []);
+        })
+        .catch(() => {
+          if (!active) return;
+          setSearchResults([]);
+        });
     }, 150);
-    return () => window.clearTimeout(timeout);
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
   }, [activeOrganizationId, paletteOpen, searchQuery, user.role]);
 
   const quickCommands = useMemo(() => {
@@ -147,7 +164,16 @@ function AppShell({ children }) {
   }, [allowedNavItems, user.role]);
 
   const drawerContent = (
-    <Box sx={{ p: 2.5, height: "100%", background: "rgba(5, 9, 16, 0.92)", display: "flex", flexDirection: "column" }}>
+    <Box
+      sx={{
+        p: 2.5,
+        height: "100%",
+        background: (theme) =>
+          theme.palette.mode === "light" ? "rgba(244, 247, 252, 0.94)" : "rgba(5, 9, 16, 0.92)",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 4 }}>
         <Box
           sx={{
@@ -164,7 +190,7 @@ function AppShell({ children }) {
         </Box>
         <Box>
           <Typography variant="h6">COMPHEART</Typography>
-          <Typography variant="body2" sx={{ color: "rgba(226, 232, 240, 0.6)" }}>
+          <Typography variant="body2" color="text.secondary">
             Multi-org company operating system
           </Typography>
         </Box>
@@ -177,10 +203,13 @@ function AppShell({ children }) {
             to={item.path}
             onClick={() => setOpen(false)}
             sx={{
-              borderRadius: 3,
+              borderRadius: 2,
               py: 1.2,
               "&.active": {
-                background: "linear-gradient(90deg, rgba(116,184,255,0.18), rgba(155,124,255,0.12))",
+                background: (theme) =>
+                  theme.palette.mode === "light"
+                    ? "linear-gradient(90deg, rgba(37,99,235,0.1), rgba(109,74,255,0.08))"
+                    : "linear-gradient(90deg, rgba(116,184,255,0.18), rgba(155,124,255,0.12))",
               },
             }}
           >
@@ -193,7 +222,7 @@ function AppShell({ children }) {
         <Box
           sx={{
             p: 2,
-            borderRadius: 4,
+            borderRadius: 3,
             background: user.role === "SUPER_ADMIN"
               ? "linear-gradient(135deg, rgba(255,107,122,0.14), rgba(155,124,255,0.18))"
               : "linear-gradient(135deg, rgba(61,200,255,0.14), rgba(155,124,255,0.14))",
@@ -203,7 +232,7 @@ function AppShell({ children }) {
           <Typography variant="subtitle2">
             {user.role === "SUPER_ADMIN" ? "Global mode available" : "Scoped workspace active"}
           </Typography>
-          <Typography variant="body2" sx={{ mt: 1, color: "rgba(226, 232, 240, 0.68)" }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             {user.role === "SUPER_ADMIN"
               ? "Switch between all organizations and company-specific contexts from the top bar."
               : "Your permissions and content are scoped to your current organization."}
@@ -222,9 +251,10 @@ function AppShell({ children }) {
         sx={{
           width: { md: `calc(100% - ${drawerWidth}px)` },
           ml: { md: `${drawerWidth}px` },
-          background: "rgba(7, 11, 20, 0.78)",
+          background: (theme) =>
+            theme.palette.mode === "light" ? "rgba(237, 242, 248, 0.82)" : "rgba(7, 11, 20, 0.78)",
           backdropFilter: "blur(18px)",
-          borderBottom: "1px solid rgba(148, 163, 184, 0.08)",
+          borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
         }}
       >
         <Toolbar sx={{ minHeight: "84px !important", gap: 2 }}>
@@ -232,7 +262,7 @@ function AppShell({ children }) {
             <MenuIcon />
           </IconButton>
           <Box sx={{ flexGrow: 1 }}>
-            <Typography variant="body2" sx={{ color: "rgba(226, 232, 240, 0.56)" }}>
+            <Typography variant="body2" color="text.secondary">
               {scopedOrganization ? scopedOrganization.name : "Global platform mode"}
             </Typography>
             <Typography variant="h6">{pageTitle}</Typography>
@@ -255,6 +285,17 @@ function AppShell({ children }) {
               label={scopedOrganization ? scopedOrganization.slug : "all organizations"}
               color={user.role === "SUPER_ADMIN" ? "secondary" : "info"}
             />
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={themeMode}
+              onChange={(_, value) => value && setThemeMode(value)}
+              sx={{ display: { xs: "none", lg: "inline-flex" } }}
+            >
+              <ToggleButton value="light">Light</ToggleButton>
+              <ToggleButton value="dark">Dark</ToggleButton>
+              <ToggleButton value="system">System</ToggleButton>
+            </ToggleButtonGroup>
             <Chip label={`Live ${connectionState}`} color={connectionState === "connected" ? "success" : "default"} variant="outlined" />
             <Chip label={`${versions.notifications} signal sync`} variant="outlined" />
             <Chip label={user.role.replace("_", " ")} color={user.role === "SUPER_ADMIN" ? "error" : "primary"} />
@@ -337,17 +378,17 @@ function AppShell({ children }) {
               onChange={(event) => setSearchQuery(event.target.value)}
               InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
             />
-            <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.55)" }}>Quick actions</Typography>
+            <Typography variant="caption" color="text.secondary">Quick actions</Typography>
             <List sx={{ display: "grid", gap: 0.5 }}>
               {(searchResults.length ? searchResults : quickCommands).map((item) => (
                 <ListItemButton
                   key={`${item.type}-${item.id}`}
                   onClick={() => {
                     setPaletteOpen(false);
-                    navigate(item.path);
+                    if (item.path) navigate(item.path);
                     setSearchQuery("");
                   }}
-                  sx={{ borderRadius: 3 }}
+                  sx={{ borderRadius: 2 }}
                 >
                   <ListItemText primary={item.title} secondary={item.subtitle || item.type} />
                 </ListItemButton>

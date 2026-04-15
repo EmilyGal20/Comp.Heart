@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     smtp_port: int | None = None
     smtp_sender: str | None = None
     recurring_poll_seconds: int = 60
+    rate_limit_enabled: bool = True
+    rate_limit_requests: int = 300
+    rate_limit_window_seconds: int = 60
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

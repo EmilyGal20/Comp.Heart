@@ -6,9 +6,11 @@ import GlassPanel from "../components/GlassPanel";
 import PageState from "../components/PageState";
 import PageHeader from "../components/PageHeader";
 import { useAuth } from "../store/AuthContext";
+import { useThemeMode } from "../store/ThemeModeContext";
 
 function SettingsPage() {
   const { user, scopedOrganization } = useAuth();
+  const { setThemeMode } = useThemeMode();
   const [profile, setProfile] = useState(null);
   const [workspace, setWorkspace] = useState(null);
   const [organization, setOrganization] = useState(null);
@@ -16,6 +18,7 @@ function SettingsPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
+  const [savingSection, setSavingSection] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -45,24 +48,49 @@ function SettingsPage() {
   }, []);
 
   const saveProfile = async () => {
-    await settingsApi.updateProfile({
-      full_name: profile.full_name,
-      title: profile.title,
-      responsibilities: profile.responsibilities,
-      notification_email: profile.notification_email,
-      notification_desktop: profile.notification_desktop,
-    });
-    setNotice("Profile settings saved");
+    try {
+      setSavingSection("profile");
+      await settingsApi.updateProfile({
+        full_name: profile.full_name,
+        title: profile.title,
+        responsibilities: profile.responsibilities,
+        notification_email: profile.notification_email,
+        notification_desktop: profile.notification_desktop,
+      });
+      setError("");
+      setNotice("Profile settings saved");
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "Unable to save profile settings");
+    } finally {
+      setSavingSection("");
+    }
   };
 
   const saveWorkspace = async () => {
-    await settingsApi.updateWorkspace(workspace);
-    setNotice("Workspace settings saved");
+    try {
+      setSavingSection("workspace");
+      await settingsApi.updateWorkspace(workspace);
+      await setThemeMode(workspace.theme_mode, false);
+      setError("");
+      setNotice("Workspace settings saved");
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "Unable to save workspace settings");
+    } finally {
+      setSavingSection("");
+    }
   };
 
   const saveOrganization = async () => {
-    await settingsApi.updateOrganization(organization);
-    setNotice("Organization settings saved");
+    try {
+      setSavingSection("organization");
+      await settingsApi.updateOrganization(organization);
+      setError("");
+      setNotice("Organization settings saved");
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "Unable to save organization settings");
+    } finally {
+      setSavingSection("");
+    }
   };
 
   const updateIntegration = async (provider) => {
@@ -71,8 +99,16 @@ function SettingsPage() {
       slack: integrationsApi.updateSlack,
       email: integrationsApi.updateEmail,
     };
-    await mapping[provider](integrations[provider]);
-    setNotice(`${provider[0].toUpperCase()}${provider.slice(1)} integration updated`);
+    try {
+      setSavingSection(provider);
+      await mapping[provider](integrations[provider]);
+      setError("");
+      setNotice(`${provider[0].toUpperCase()}${provider.slice(1)} integration updated`);
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || `Unable to update ${provider} integration`);
+    } finally {
+      setSavingSection("");
+    }
   };
 
   return (
@@ -93,23 +129,23 @@ function SettingsPage() {
       {notice ? <Alert severity="success" sx={{ mb: 2.5 }} onClose={() => setNotice("")}>{notice}</Alert> : null}
       {profile && workspace && integrations ? (
         <Grid container spacing={3}>
-          <Grid item xs={12} xl={7}>
+          <Grid size={{ xs: 12, xl: 7 }}>
             <Stack spacing={3}>
               <GlassPanel title="My profile" subtitle="Personal context, role visibility, and notification preferences">
                 <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField fullWidth label="Full name" value={profile.full_name} onChange={(event) => setProfile((previous) => ({ ...previous, full_name: event.target.value }))} />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField fullWidth label="Email" value={profile.email} disabled />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField fullWidth label="Title" value={profile.title} onChange={(event) => setProfile((previous) => ({ ...previous, title: event.target.value }))} />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField fullWidth label="Role" value={profile.role.replace("_", " ")} disabled />
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <TextField fullWidth multiline minRows={4} label="Responsibilities" value={profile.responsibilities} onChange={(event) => setProfile((previous) => ({ ...previous, responsibilities: event.target.value }))} />
                   </Grid>
                 </Grid>
@@ -119,37 +155,37 @@ function SettingsPage() {
                   <Chip label={profile.organization?.name || scopedOrganization?.name || "Organization"} />
                   <Chip label={profile.team?.name || "No team"} variant="outlined" />
                 </Stack>
-                <Button sx={{ mt: 2.5 }} variant="contained" onClick={saveProfile}>Save profile</Button>
+                <Button sx={{ mt: 2.5 }} variant="contained" onClick={saveProfile} disabled={savingSection === "profile"}>{savingSection === "profile" ? "Saving..." : "Save profile"}</Button>
               </GlassPanel>
 
               <GlassPanel title="Workspace defaults" subtitle="Choose a calmer layout and the task surface that opens first">
                 <Grid container spacing={2}>
-                  <Grid item xs={12} md={4}>
+                  <Grid size={{ xs: 12, md: 4 }}>
                     <TextField select fullWidth label="Default task view" value={workspace.default_task_view} onChange={(event) => setWorkspace((previous) => ({ ...previous, default_task_view: event.target.value }))}>
                       {["list", "board", "calendar", "timeline"].map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}
                     </TextField>
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid size={{ xs: 12, md: 4 }}>
                     <TextField select fullWidth label="Density" value={workspace.density} onChange={(event) => setWorkspace((previous) => ({ ...previous, density: event.target.value }))}>
                       {["comfortable", "compact"].map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}
                     </TextField>
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid size={{ xs: 12, md: 4 }}>
                     <TextField select fullWidth label="Theme mode" value={workspace.theme_mode} onChange={(event) => setWorkspace((previous) => ({ ...previous, theme_mode: event.target.value }))}>
-                      {["dark"].map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}
+                      {["light", "dark", "system"].map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}
                     </TextField>
                   </Grid>
                 </Grid>
-                <Button sx={{ mt: 2.5 }} variant="contained" onClick={saveWorkspace}>Save workspace</Button>
+                <Button sx={{ mt: 2.5 }} variant="contained" onClick={saveWorkspace} disabled={savingSection === "workspace"}>{savingSection === "workspace" ? "Saving..." : "Save workspace"}</Button>
               </GlassPanel>
 
               {organization ? (
                 <GlassPanel title="Organization operations" subtitle="Defaults for approvals, recurring execution, notifications, and baseline SLA posture">
                   <Grid container spacing={2}>
-                    <Grid item xs={12} md={4}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                       <TextField type="number" fullWidth label="Default SLA hours" value={organization.default_sla_hours} onChange={(event) => setOrganization((previous) => ({ ...previous, default_sla_hours: Number(event.target.value) }))} />
                     </Grid>
-                    <Grid item xs={12} md={8}>
+                    <Grid size={{ xs: 12, md: 8 }}>
                       <Stack spacing={1.25} sx={{ pt: 1 }}>
                         <Stack direction="row" justifyContent="space-between"><Typography>Require approval for critical work</Typography><Switch checked={organization.require_approval_for_critical} onChange={(event) => setOrganization((previous) => ({ ...previous, require_approval_for_critical: event.target.checked }))} /></Stack>
                         <Stack direction="row" justifyContent="space-between"><Typography>Auto-run recurring work scheduler</Typography><Switch checked={organization.recurring_auto_run} onChange={(event) => setOrganization((previous) => ({ ...previous, recurring_auto_run: event.target.checked }))} /></Stack>
@@ -158,12 +194,12 @@ function SettingsPage() {
                       </Stack>
                     </Grid>
                   </Grid>
-                  <Button sx={{ mt: 2.5 }} variant="contained" onClick={saveOrganization}>Save organization settings</Button>
+                  <Button sx={{ mt: 2.5 }} variant="contained" onClick={saveOrganization} disabled={savingSection === "organization"}>{savingSection === "organization" ? "Saving..." : "Save organization settings"}</Button>
                 </GlassPanel>
               ) : null}
             </Stack>
           </Grid>
-          <Grid item xs={12} xl={5}>
+          <Grid size={{ xs: 12, xl: 5 }}>
             <Stack spacing={3}>
               {["github", "slack", "email"].map((provider) => (
                 <GlassPanel
@@ -197,7 +233,7 @@ function SettingsPage() {
                         }
                       }}
                     />
-                    <Button variant="outlined" onClick={() => updateIntegration(provider)}>Save {provider}</Button>
+                    <Button variant="outlined" onClick={() => updateIntegration(provider)} disabled={savingSection === provider}>{savingSection === provider ? "Saving..." : `Save ${provider}`}</Button>
                   </Stack>
                 </GlassPanel>
               ))}

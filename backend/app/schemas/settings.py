@@ -40,7 +40,7 @@ class WorkspaceSettingsRead(BaseModel):
 class WorkspaceSettingsUpdate(BaseModel):
     default_task_view: str = Field(default="list", pattern="^(list|board|calendar|timeline)$")
     density: str = Field(default="comfortable", pattern="^(compact|comfortable)$")
-    theme_mode: str = Field(default="dark", pattern="^(dark|system)$")
+    theme_mode: str = Field(default="dark", pattern="^(dark|light|system)$")
 
 
 class OrganizationSettingsRead(BaseModel):

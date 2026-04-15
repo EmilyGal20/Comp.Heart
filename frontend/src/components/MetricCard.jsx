@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Card, CardContent, Stack, Typography } from "@mui/material";
 
 function MetricCard({ label, value, helper, accent }) {
@@ -16,13 +17,13 @@ function MetricCard({ label, value, helper, accent }) {
       }}
     >
       <CardContent sx={{ position: "relative", zIndex: 1 }}>
-        <Typography variant="body2" sx={{ color: "rgba(226, 232, 240, 0.68)" }}>
+        <Typography variant="body2" color="text.secondary">
           {label}
         </Typography>
         <Stack direction="row" alignItems="baseline" spacing={1} sx={{ my: 1 }}>
           <Typography variant="h4">{value}</Typography>
         </Stack>
-        <Typography variant="body2" sx={{ color: "rgba(226, 232, 240, 0.62)" }}>
+        <Typography variant="body2" color="text.secondary">
           {helper}
         </Typography>
       </CardContent>
@@ -30,4 +31,4 @@ function MetricCard({ label, value, helper, accent }) {
   );
 }
 
-export default MetricCard;
+export default memo(MetricCard);

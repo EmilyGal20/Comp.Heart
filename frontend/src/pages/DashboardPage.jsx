@@ -28,6 +28,9 @@ function DashboardPage() {
   const [error, setError] = useState("");
 
   const params = activeOrganizationId ? { organization_id: activeOrganizationId } : {};
+  const announcementItems = announcements.slice(0, 4);
+  const executionItems = user.role === "USER" ? personal?.my_tasks || [] : summary?.focus_items || [];
+  const contextItems = user.role === "USER" ? [...notes.slice(0, 2), ...meetings.slice(0, 2)] : risk.slice(0, 4);
 
   const load = async () => {
     setLoading(true);
@@ -87,28 +90,28 @@ function DashboardPage() {
       />
       {summary && personal && approvals && onboarding ? (
         <Grid container spacing={3}>
-        <Grid item xs={12} md={3}><MetricCard label={user.role === "USER" ? "My open tasks" : "Open tasks"} value={user.role === "USER" ? personal.summary.my_open_tasks : summary.open_tasks} helper="Current active load" accent="rgba(61,200,255,0.22)" /></Grid>
-        <Grid item xs={12} md={3}><MetricCard label="Pending approvals" value={approvals.summary.pending_count} helper="Visible approval queue" accent="rgba(245,165,36,0.22)" /></Grid>
-        <Grid item xs={12} md={3}><MetricCard label="At-risk tasks" value={risk.filter((item) => item.risk_level !== "low").length} helper="Predictive SLA pressure" accent="rgba(255,107,122,0.24)" /></Grid>
-        <Grid item xs={12} md={3}><MetricCard label="Onboarding progress" value={`${onboarding.summary.completion_percent}%`} helper="Role-aware first-step completion" accent="rgba(57,217,138,0.18)" /></Grid>
+        <Grid size={{ xs: 12, md: 3 }}><MetricCard label={user.role === "USER" ? "My open tasks" : "Open tasks"} value={user.role === "USER" ? personal.summary.my_open_tasks : summary.open_tasks} helper="Current active load" accent="rgba(61,200,255,0.22)" /></Grid>
+        <Grid size={{ xs: 12, md: 3 }}><MetricCard label="Pending approvals" value={approvals.summary.pending_count} helper="Visible approval queue" accent="rgba(245,165,36,0.22)" /></Grid>
+        <Grid size={{ xs: 12, md: 3 }}><MetricCard label="At-risk tasks" value={risk.filter((item) => item.risk_level !== "low").length} helper="Predictive SLA pressure" accent="rgba(255,107,122,0.24)" /></Grid>
+        <Grid size={{ xs: 12, md: 3 }}><MetricCard label="Onboarding progress" value={`${onboarding.summary.completion_percent}%`} helper="Role-aware first-step completion" accent="rgba(57,217,138,0.18)" /></Grid>
 
-        <Grid item xs={12} lg={8}>
+        <Grid size={{ xs: 12, lg: 8 }}>
           <GlassPanel title="Important announcements" subtitle="Pinned updates, admin messages, and latest operating guidance" action={<Stack direction="row" spacing={1}><Button size="small" variant="outlined" onClick={() => navigate("/messages")}>Important messages</Button><Button size="small" variant="outlined" onClick={() => navigate("/announcements")}>All announcements</Button></Stack>}>
             <Stack spacing={1.4}>
-              {announcements.slice(0, 4).map((item) => (
-                <Stack key={item.id} sx={{ p: 1.6, borderRadius: 3.5, bgcolor: item.is_pinned ? "rgba(116,184,255,0.08)" : "rgba(255,255,255,0.03)" }}>
+              {announcementItems.length ? announcementItems.map((item) => (
+                <Stack key={item.id} sx={{ p: 1.6, borderRadius: 2.5, bgcolor: item.is_pinned ? "rgba(116,184,255,0.08)" : "rgba(255,255,255,0.03)" }}>
                   <Stack direction="row" justifyContent="space-between"><Typography variant="subtitle2">{item.title}</Typography><StatusPill value={item.severity} /></Stack>
-                  <Typography variant="body2" sx={{ mt: 0.8, color: "rgba(226,232,240,0.66)" }}>{item.content}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.8 }}>{item.content}</Typography>
                 </Stack>
-              ))}
+              )) : <Typography variant="body2" color="text.secondary">No important announcements right now.</Typography>}
             </Stack>
           </GlassPanel>
         </Grid>
-        <Grid item xs={12} lg={4}>
+        <Grid size={{ xs: 12, lg: 4 }}>
           <GlassPanel title="Onboarding and quick actions" subtitle="High-value setup steps and fast entry points">
             <Stack spacing={1.2}>
               <Typography variant="h4">{onboarding.summary.completion_percent}%</Typography>
-              <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.66)" }}>{onboarding.summary.completed_steps} of {onboarding.summary.total_steps} steps complete</Typography>
+              <Typography variant="body2" color="text.secondary">{onboarding.summary.completed_steps} of {onboarding.summary.total_steps} steps complete</Typography>
               <Button variant="contained" onClick={() => navigate("/onboarding")}>Open onboarding</Button>
               <Button variant="outlined" onClick={() => navigate("/search")}>Open AI search</Button>
               {user.role === "SUPER_ADMIN" ? <Button variant="outlined" onClick={() => navigate("/control-center")}>Open command center</Button> : null}
@@ -116,27 +119,27 @@ function DashboardPage() {
           </GlassPanel>
         </Grid>
 
-        <Grid item xs={12} lg={6}>
+        <Grid size={{ xs: 12, lg: 6 }}>
           <GlassPanel title={user.role === "USER" ? "My next work" : "Execution lane"} subtitle="The items most likely to shape your next move">
             <Stack spacing={1.2}>
-              {(user.role === "USER" ? personal.my_tasks : summary.focus_items).map((item) => (
-                <Stack key={item.id || item.title} sx={{ p: 1.5, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+              {executionItems.length ? executionItems.map((item) => (
+                <Stack key={item.id || item.title} sx={{ p: 1.5, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.03)" }}>
                   <Typography variant="subtitle2">{item.title}</Typography>
-                  <Typography variant="body2" sx={{ mt: 0.7, color: "rgba(226,232,240,0.62)" }}>{item.subtitle || item.status || "Work item"}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.7 }}>{item.subtitle || item.status || "Work item"}</Typography>
                 </Stack>
-              ))}
+              )) : <Typography variant="body2" color="text.secondary">Nothing urgent is queued right now.</Typography>}
             </Stack>
           </GlassPanel>
         </Grid>
-        <Grid item xs={12} lg={6}>
+        <Grid size={{ xs: 12, lg: 6 }}>
           <GlassPanel title={user.role === "USER" ? "Personal context" : "Team and risk watch"} subtitle={user.role === "USER" ? "Notes, meetings, and recommended next steps" : "Likely misses, onboarding drift, and operational pressure"}>
             <Stack spacing={1.2}>
-              {(user.role === "USER" ? [...notes.slice(0, 2), ...meetings.slice(0, 2)] : risk.slice(0, 4)).map((item) => (
-                <Stack key={item.id || item.task_id} sx={{ p: 1.5, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+              {contextItems.length ? contextItems.map((item) => (
+                <Stack key={item.id || item.task_id} sx={{ p: 1.5, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.03)" }}>
                   <Typography variant="subtitle2">{item.title}</Typography>
-                  <Typography variant="body2" sx={{ mt: 0.7, color: "rgba(226,232,240,0.62)" }}>{item.summary || item.content || item.reasons?.join(" - ")}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.7 }}>{item.summary || item.content || item.reasons?.join(" - ")}</Typography>
                 </Stack>
-              ))}
+              )) : <Typography variant="body2" color="text.secondary">No additional context items are waiting right now.</Typography>}
               {onboardingOverview ? <Chip label={`Users in onboarding: ${onboardingOverview.users_in_progress}`} color="secondary" /> : null}
             </Stack>
           </GlassPanel>

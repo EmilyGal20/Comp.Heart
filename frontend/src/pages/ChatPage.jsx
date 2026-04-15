@@ -6,6 +6,7 @@ import { chatApi, organizationsApi } from "../api/endpoints";
 import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
+import PageState from "../components/PageState";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
 
@@ -22,27 +23,35 @@ function ChatPage() {
   const [channelOpen, setChannelOpen] = useState(false);
   const [channelForm, setChannelForm] = useState(emptyChannel);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [creatingChannel, setCreatingChannel] = useState(false);
   const orgId = activeOrganizationId || user.organization_id;
 
   const load = async () => {
+    setLoading(true);
     try {
       const [channelResponse, teamResponse] = await Promise.all([
         chatApi.channels({ organization_id: orgId }),
         organizationsApi.teams(orgId),
       ]);
-      setChannels(channelResponse.data);
-      setTeams(teamResponse.data);
-      const nextChannelId = selectedChannelId || channelResponse.data[0]?.id || null;
+      const channelItems = Array.isArray(channelResponse.data) ? channelResponse.data : [];
+      const teamItems = Array.isArray(teamResponse.data) ? teamResponse.data : [];
+      setChannels(channelItems);
+      setTeams(teamItems);
+      const nextChannelId = selectedChannelId || channelItems[0]?.id || null;
       setSelectedChannelId(nextChannelId);
       if (nextChannelId) {
         const messageResponse = await chatApi.messages(nextChannelId);
-        setMessages(messageResponse.data);
+        setMessages(Array.isArray(messageResponse.data) ? messageResponse.data : []);
       } else {
         setMessages([]);
       }
       setError("");
     } catch (requestError) {
       setError(requestError.response?.data?.detail || "Unable to load chat workspace");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -52,7 +61,7 @@ function ChatPage() {
 
   useEffect(() => {
     if (!selectedChannelId) return;
-    chatApi.messages(selectedChannelId).then((response) => setMessages(response.data));
+    chatApi.messages(selectedChannelId).then((response) => setMessages(Array.isArray(response.data) ? response.data : [])).catch(() => setMessages([]));
   }, [selectedChannelId]);
 
   const selectedChannel = useMemo(
@@ -62,17 +71,33 @@ function ChatPage() {
 
   const sendMessage = async () => {
     if (!draft.trim() || !selectedChannel) return;
-    await chatApi.sendMessage(selectedChannel.id, { message: draft });
-    setDraft("");
-    const response = await chatApi.messages(selectedChannel.id);
-    setMessages(response.data);
+    try {
+      setSending(true);
+      await chatApi.sendMessage(selectedChannel.id, { message: draft });
+      setDraft("");
+      const response = await chatApi.messages(selectedChannel.id);
+      setMessages(Array.isArray(response.data) ? response.data : []);
+      setError("");
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "Unable to send channel message");
+    } finally {
+      setSending(false);
+    }
   };
 
   const createChannel = async () => {
-    await chatApi.createChannel({ ...channelForm, team_id: channelForm.team_id || null });
-    setChannelOpen(false);
-    setChannelForm(emptyChannel);
-    await load();
+    try {
+      setCreatingChannel(true);
+      await chatApi.createChannel({ ...channelForm, team_id: channelForm.team_id || null });
+      setChannelOpen(false);
+      setChannelForm(emptyChannel);
+      setError("");
+      await load();
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "Unable to create channel");
+    } finally {
+      setCreatingChannel(false);
+    }
   };
 
   return (
@@ -88,21 +113,22 @@ function ChatPage() {
       />
       {error ? <Alert severity="error" sx={{ mb: 2.5 }}>{error}</Alert> : null}
       <Grid container spacing={3}>
-        <Grid item xs={12} lg={3.2}>
+        <Grid size={{ xs: 12, lg: 3.2 }}>
           <GlassPanel title="Channels" subtitle="Organization, team, and focused conversation rooms">
-            <List className="soft-scroll" sx={{ display: "grid", gap: 0.75, maxHeight: 720, overflowY: "auto" }}>
+            <PageState loading={loading} error={error} empty={!loading && !error && channels.length === 0} title="No channels available" description="Create a channel or wait for your organization workspace to publish one." onRetry={load} minHeight={200} />
+            {!loading && !error ? <List className="soft-scroll" sx={{ display: "grid", gap: 0.75, maxHeight: 720, overflowY: "auto" }}>
               {channels.map((channel) => (
                 <ListItemButton
                   key={channel.id}
                   selected={selectedChannelId === channel.id}
                   onClick={() => setSelectedChannelId(channel.id)}
-                  sx={{ borderRadius: 3.5, alignItems: "flex-start", py: 1.4 }}
+                  sx={{ borderRadius: 2.5, alignItems: "flex-start", py: 1.4 }}
                 >
                   <ListItemText
                     primary={`# ${channel.name}`}
                     secondary={
                       <Stack spacing={0.6} sx={{ mt: 0.6 }}>
-                        <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.58)" }}>
+                        <Typography variant="caption" color="text.secondary">
                           {channel.latest_message_preview}
                         </Typography>
                         <Stack direction="row" spacing={0.8}>
@@ -114,10 +140,10 @@ function ChatPage() {
                   />
                 </ListItemButton>
               ))}
-            </List>
+            </List> : null}
           </GlassPanel>
         </Grid>
-        <Grid item xs={12} lg={8.8}>
+        <Grid size={{ xs: 12, lg: 8.8 }}>
           <GlassPanel
             title={selectedChannel ? `# ${selectedChannel.name}` : "Channel feed"}
             subtitle={selectedChannel?.description || "Choose a channel to start collaborating."}
@@ -128,14 +154,14 @@ function ChatPage() {
               <Box className="soft-scroll" sx={{ flex: 1, maxHeight: 560, overflowY: "auto", pr: 0.5 }}>
                 <Stack spacing={1.5}>
                   {messages.map((entry) => (
-                    <Stack key={entry.id} direction="row" spacing={1.4} alignItems="flex-start" sx={{ p: 1.25, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
+                    <Stack key={entry.id} direction="row" spacing={1.4} alignItems="flex-start" sx={{ p: 1.25, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.03)" }}>
                       <Avatar sx={{ width: 38, height: 38, bgcolor: "secondary.main" }}>
                         {(entry.user?.full_name || "?").split(" ").map((part) => part[0]).join("").slice(0, 2)}
                       </Avatar>
                       <Box sx={{ flex: 1 }}>
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Typography variant="subtitle2">{entry.user?.full_name || "Unknown"}</Typography>
-                          <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.5)" }}>
+                          <Typography variant="caption" color="text.secondary">
                             {dayjs(entry.created_at).format("MMM D, HH:mm")}
                           </Typography>
                         </Stack>
@@ -146,9 +172,9 @@ function ChatPage() {
                     </Stack>
                   ))}
                   {!messages.length ? (
-                    <Box sx={{ p: 4, borderRadius: 4, textAlign: "center", bgcolor: "rgba(255,255,255,0.025)" }}>
+                    <Box sx={{ p: 4, borderRadius: 3, textAlign: "center", bgcolor: "rgba(255,255,255,0.025)" }}>
                       <Typography variant="subtitle1">No conversation yet</Typography>
-                      <Typography variant="body2" sx={{ mt: 1, color: "rgba(226,232,240,0.6)" }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                         Start a channel message to create a visible team rhythm.
                       </Typography>
                     </Box>
@@ -165,8 +191,8 @@ function ChatPage() {
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
                 />
-                <Button variant="contained" endIcon={<Send />} onClick={sendMessage} disabled={!selectedChannel}>
-                  Send
+                <Button variant="contained" endIcon={<Send />} onClick={sendMessage} disabled={!selectedChannel || !draft.trim() || sending}>
+                  {sending ? "Sending..." : "Send"}
                 </Button>
               </Stack>
             </Stack>
@@ -194,7 +220,7 @@ function ChatPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setChannelOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={createChannel}>Create</Button>
+          <Button variant="contained" onClick={createChannel} disabled={creatingChannel || !channelForm.name.trim() || (channelForm.channel_type === "TEAM" && !channelForm.team_id)}>{creatingChannel ? "Creating..." : "Create"}</Button>
         </DialogActions>
       </Dialog>
     </>
