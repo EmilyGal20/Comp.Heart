@@ -32,6 +32,38 @@ def _serialize_memberships(channel: ChatChannel):
     ]
 
 
+def _prepare_channel_for_user(channel: ChatChannel, current_user: User):
+    latest_message_preview = channel.messages[-1].message[:80] if channel.messages else "No messages yet"
+    membership = next((item for item in channel.memberships if item.user_id == current_user.id), None)
+    unread_count = membership.unread_count if membership else 0
+    member_count = len(channel.memberships)
+    memberships = _serialize_memberships(channel)
+    display_name = channel.name
+    participant_user_id = None
+    if channel.channel_type == "DIRECT":
+        other_membership = next((item for item in memberships if item["user_id"] != current_user.id), None)
+        if other_membership:
+            display_name = other_membership["full_name"]
+            participant_user_id = other_membership["user_id"]
+    return {
+        "id": channel.id,
+        "organization_id": channel.organization_id,
+        "name": channel.name,
+        "description": channel.description,
+        "channel_type": channel.channel_type,
+        "is_private": channel.is_private,
+        "team_id": channel.team_id,
+        "created_at": channel.created_at,
+        "team": channel.team,
+        "member_count": member_count,
+        "latest_message_preview": latest_message_preview,
+        "unread_count": unread_count,
+        "display_name": display_name,
+        "participant_user_id": participant_user_id,
+        "memberships": memberships,
+    }
+
+
 def ensure_chat_scope(current_user: User, channel: ChatChannel):
     if current_user.role == ROLE_SUPER_ADMIN:
         return True
@@ -58,15 +90,64 @@ def list_channels(db: Session, *, current_user: User, organization_id: int | Non
             ensure_chat_scope(current_user, channel)
         except HTTPException:
             continue
-        channel.latest_message_preview = channel.messages[-1].message[:80] if channel.messages else "No messages yet"
-        membership = next((item for item in channel.memberships if item.user_id == current_user.id), None)
-        channel.unread_count = membership.unread_count if membership else 0
-        channel.member_count = len(channel.memberships)
-        visible.append(channel)
+        visible.append(_prepare_channel_for_user(channel, current_user))
     return visible
 
 
 def create_channel(db: Session, *, current_user: User, organization_id: int, payload):
+    if payload.channel_type == "DIRECT":
+        if not payload.member_user_id:
+            raise HTTPException(status_code=400, detail="Direct messages require a member_user_id")
+        if payload.member_user_id == current_user.id:
+            raise HTTPException(status_code=400, detail="Direct messages require another user")
+        target_user = (
+            db.query(User)
+            .filter(User.id == payload.member_user_id, User.is_active.is_(True))
+            .first()
+        )
+        if not target_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if target_user.organization_id != organization_id:
+            raise HTTPException(status_code=403, detail="Cross-organization access denied")
+        existing_channels = (
+            _base_channel_query(db)
+            .filter(ChatChannel.organization_id == organization_id, ChatChannel.channel_type == "DIRECT")
+            .all()
+        )
+        for existing in existing_channels:
+            member_ids = sorted(item.user_id for item in existing.memberships)
+            if member_ids == sorted([current_user.id, target_user.id]):
+                return _prepare_channel_for_user(existing, current_user)
+        channel = ChatChannel(
+            organization_id=organization_id,
+            name=f"dm-{min(current_user.id, target_user.id)}-{max(current_user.id, target_user.id)}",
+            description=f"Direct conversation between {current_user.full_name} and {target_user.full_name}",
+            channel_type="DIRECT",
+            is_private=True,
+            created_by=current_user.id,
+        )
+        db.add(channel)
+        db.flush()
+        db.add(ChatMembership(channel_id=channel.id, user_id=current_user.id))
+        db.add(ChatMembership(channel_id=channel.id, user_id=target_user.id))
+        log_audit_event(
+            db,
+            organization_id=organization_id,
+            user_id=current_user.id,
+            action="chat_direct_channel_created",
+            entity_type="ChatChannel",
+            entity_id=channel.id,
+            details=target_user.full_name,
+        )
+        db.commit()
+        channel = _base_channel_query(db).filter(ChatChannel.id == channel.id).first()
+        publish_event(
+            "chat_channel_updated",
+            {"message": f"{current_user.full_name} started a direct conversation", "channel_id": channel.id},
+            organization_id=organization_id,
+        )
+        return _prepare_channel_for_user(channel, current_user)
+
     if current_user.role not in {ROLE_SUPER_ADMIN, ROLE_ADMIN}:
         raise HTTPException(status_code=403, detail="Only admins can create channels")
     if current_user.role != ROLE_SUPER_ADMIN and organization_id != current_user.organization_id:
@@ -93,7 +174,8 @@ def create_channel(db: Session, *, current_user: User, organization_id: int, pay
     db.commit()
     db.refresh(channel)
     publish_event("chat_channel_updated", {"message": f"{current_user.full_name} created #{channel.name}", "channel_id": channel.id}, organization_id=organization_id)
-    return _base_channel_query(db).filter(ChatChannel.id == channel.id).first()
+    channel = _base_channel_query(db).filter(ChatChannel.id == channel.id).first()
+    return _prepare_channel_for_user(channel, current_user)
 
 
 def get_channel_messages(db: Session, *, channel_id: int, current_user: User):
