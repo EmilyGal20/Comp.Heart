@@ -44,6 +44,7 @@ import {
   ListItemText,
   MenuItem,
   Select,
+  Divider,
   Stack,
   ToggleButton,
   ToggleButtonGroup,
@@ -61,33 +62,55 @@ import { workApi } from "../api/endpoints";
 
 const drawerWidth = 292;
 
-const navItems = [
-  { label: "Activity", path: "/activity", icon: <Insights />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Admin Messages", path: "/messages", icon: <Notifications />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "AI", path: "/ai", icon: <AutoAwesome />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Announcements", path: "/announcements", icon: <Campaign />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Approvals", path: "/approvals", icon: <FactCheck />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Automation", path: "/automation", icon: <Hub />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
-  { label: "Chat", path: "/chat", icon: <Forum />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Contacts", path: "/contacts", icon: <People />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Control Center", path: "/control-center", icon: <Shield />, roles: ["SUPER_ADMIN"] },
-  { label: "Global Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["SUPER_ADMIN"] },
-  { label: "Knowledge", path: "/knowledge", icon: <MenuBook />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Meetings", path: "/meetings", icon: <RecordVoiceOver />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "My Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["USER"] },
-  { label: "My Work", path: "/my-work", icon: <WorkOutline />, roles: ["USER"] },
-  { label: "Notifications", path: "/notifications", icon: <Notifications />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Onboarding", path: "/onboarding", icon: <RocketLaunch />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Org Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["ADMIN", "MANAGER"] },
-  { label: "Organizations", path: "/organizations", icon: <Apartment />, roles: ["SUPER_ADMIN"] },
-  { label: "People Admin", path: "/employees", icon: <People />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
-  { label: "Permissions", path: "/permissions", icon: <GppGood />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Planning", path: "/planning", icon: <Timeline />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
-  { label: "Reports", path: "/reports", icon: <QueryStats />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
-  { label: "Search", path: "/search", icon: <PersonSearch />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Task archive", path: "/task-archive", icon: <Archive />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Tasks", path: "/tasks", icon: <TaskAlt />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-].sort((a, b) => a.label.localeCompare(b.label, "en", { numeric: true, sensitivity: "base" }));
+const compareNavLabel = (a, b) => a.label.localeCompare(b.label, "en", { numeric: true, sensitivity: "base" });
+
+const NAV_SECTIONS = [
+  {
+    id: "home",
+    items: [
+      { label: "Global Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["SUPER_ADMIN"] },
+      { label: "Org Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["ADMIN", "MANAGER"] },
+      { label: "My Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["USER"] },
+    ],
+  },
+  {
+    id: "work",
+    items: [
+      { label: "Approvals", path: "/approvals", icon: <FactCheck />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+      { label: "Automation", path: "/automation", icon: <Hub />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
+      { label: "Meetings", path: "/meetings", icon: <RecordVoiceOver />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+      { label: "My Work", path: "/my-work", icon: <WorkOutline />, roles: ["USER"] },
+      { label: "Planning", path: "/planning", icon: <Timeline />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
+      { label: "Reports", path: "/reports", icon: <QueryStats />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
+      { label: "Search", path: "/search", icon: <PersonSearch />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+      { label: "Task archive", path: "/task-archive", icon: <Archive />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+      { label: "Tasks", path: "/tasks", icon: <TaskAlt />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+    ],
+  },
+  {
+    id: "collaboration",
+    items: [
+      { label: "Activity", path: "/activity", icon: <Insights />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+      { label: "Admin Messages", path: "/messages", icon: <Notifications />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+      { label: "AI", path: "/ai", icon: <AutoAwesome />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+      { label: "Announcements", path: "/announcements", icon: <Campaign />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+      { label: "Chat", path: "/chat", icon: <Forum />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+      { label: "Contacts", path: "/contacts", icon: <People />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+      { label: "Knowledge", path: "/knowledge", icon: <MenuBook />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+      { label: "Notifications", path: "/notifications", icon: <Notifications />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+    ],
+  },
+  {
+    id: "administration",
+    items: [
+      { label: "Control Center", path: "/control-center", icon: <Shield />, roles: ["SUPER_ADMIN"] },
+      { label: "Onboarding", path: "/onboarding", icon: <RocketLaunch />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+      { label: "Organizations", path: "/organizations", icon: <Apartment />, roles: ["SUPER_ADMIN"] },
+      { label: "People Admin", path: "/employees", icon: <People />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
+      { label: "Permissions", path: "/permissions", icon: <GppGood />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+    ],
+  },
+];
 
 function AppShell({ children }) {
   const [open, setOpen] = useState(false);
@@ -102,9 +125,16 @@ function AppShell({ children }) {
   const { connectionState, versions } = useRealtime();
   const { themeMode, setThemeMode } = useThemeMode();
 
+  const allowedNavSections = useMemo(() => {
+    return NAV_SECTIONS.map((section) => ({
+      ...section,
+      items: section.id === "home" ? section.items.filter((item) => item.roles.includes(user.role)) : section.items.filter((item) => item.roles.includes(user.role)).sort(compareNavLabel),
+    })).filter((section) => section.items.length > 0);
+  }, [user.role]);
+
   const allowedNavItems = useMemo(
-    () => navItems.filter((item) => item.roles.includes(user.role)),
-    [user.role]
+    () => allowedNavSections.flatMap((s) => s.items),
+    [allowedNavSections]
   );
 
   const pageTitle = useMemo(() => {
@@ -213,50 +243,36 @@ function AppShell({ children }) {
           </Typography>
         </Box>
       </Stack>
-      <List sx={{ display: "grid", gap: 1 }}>
-        {allowedNavItems.map((item) => (
-          <ListItemButton
-            key={`${item.label}-${item.path}`}
-            component={NavLink}
-            to={item.path}
-            onClick={() => setOpen(false)}
-            sx={{
-              borderRadius: 2,
-              py: 1.2,
-              "&.active": {
-                background: (theme) =>
-                  theme.palette.mode === "light"
-                    ? "linear-gradient(90deg, rgba(37,99,235,0.1), rgba(109,74,255,0.08))"
-                    : "linear-gradient(90deg, rgba(116,184,255,0.18), rgba(155,124,255,0.12))",
-              },
-            }}
-          >
-            <ListItemIcon sx={{ minWidth: 38, color: "inherit" }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
-          </ListItemButton>
+      <Stack component="nav" spacing={0} sx={{ minHeight: 0 }}>
+        {allowedNavSections.map((section, sectionIndex) => (
+          <Box key={section.id}>
+            {sectionIndex > 0 ? <Divider sx={{ my: 1.75, borderColor: (theme) => (theme.palette.mode === "light" ? "rgba(15, 23, 42, 0.12)" : "rgba(148, 163, 184, 0.2)") }} /> : null}
+            <List disablePadding dense sx={{ display: "grid", gap: 1, py: 0.25 }}>
+              {section.items.map((item) => (
+                <ListItemButton
+                  key={`${item.label}-${item.path}`}
+                  component={NavLink}
+                  to={item.path}
+                  onClick={() => setOpen(false)}
+                  sx={{
+                    borderRadius: 2,
+                    py: 1.2,
+                    "&.active": {
+                      background: (theme) =>
+                        theme.palette.mode === "light"
+                          ? "linear-gradient(90deg, rgba(37,99,235,0.1), rgba(109,74,255,0.08))"
+                          : "linear-gradient(90deg, rgba(116,184,255,0.18), rgba(155,124,255,0.12))",
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 38, color: "inherit" }}>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.label} />
+                </ListItemButton>
+              ))}
+            </List>
+          </Box>
         ))}
-      </List>
-      <Box sx={{ mt: "auto", pt: 4 }}>
-        <Box
-          sx={{
-            p: 2,
-            borderRadius: 3,
-            background: user.role === "SUPER_ADMIN"
-              ? "linear-gradient(135deg, rgba(255,107,122,0.14), rgba(155,124,255,0.18))"
-              : "linear-gradient(135deg, rgba(61,200,255,0.14), rgba(155,124,255,0.14))",
-            border: "1px solid rgba(116,184,255,0.18)",
-          }}
-        >
-          <Typography variant="subtitle2">
-            {user.role === "SUPER_ADMIN" ? "Global mode available" : "Scoped workspace active"}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            {user.role === "SUPER_ADMIN"
-              ? "Switch between all organizations and company-specific contexts from the top bar."
-              : "Your permissions and content are scoped to your current organization."}
-          </Typography>
-        </Box>
-      </Box>
+      </Stack>
     </Box>
   );
 
