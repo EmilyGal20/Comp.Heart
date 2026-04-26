@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { searchApi } from "../api/endpoints";
+import CardListScroll from "../components/CardListScroll";
 import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import PageState from "../components/PageState";
@@ -173,6 +174,7 @@ function SearchPage() {
                 return (
                   <Grid key={group.type} size={{ xs: 12, lg: 6 }}>
                     <GlassPanel title={group.label} subtitle={`${group.count || items.length} results`}>
+                      <CardListScroll count={items.length} rowEstimatePx={96}>
                       <Stack spacing={1.25}>
                         {items.map((item) => (
                           <Stack
@@ -213,6 +215,7 @@ function SearchPage() {
                           </Stack>
                         ))}
                       </Stack>
+                      </CardListScroll>
                     </GlassPanel>
                   </Grid>
                 );

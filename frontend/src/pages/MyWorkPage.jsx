@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Chip, Stack, Typography } from "@mui/material";
 import { usersApi } from "../api/endpoints";
+import CardListScroll from "../components/CardListScroll";
 import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
@@ -52,6 +53,7 @@ function MyWorkPage() {
       <Grid container spacing={2.5}>
         <Grid item xs={12} lg={6}>
           <GlassPanel title="Assigned tasks" subtitle="What needs movement now">
+            <CardListScroll count={data.my_tasks.length}>
             <Stack spacing={1.4}>
               {data.my_tasks.map((task) => (
                 <Stack key={task.id} direction="row" justifyContent="space-between" sx={{ p: 1.5, borderRadius: 3, bgcolor: (theme) => surfaceSubtle(theme) }}>
@@ -68,10 +70,12 @@ function MyWorkPage() {
                 </Stack>
               ))}
             </Stack>
+            </CardListScroll>
           </GlassPanel>
         </Grid>
         <Grid item xs={12} lg={6}>
           <GlassPanel title="Watched tasks" subtitle="Work you asked to follow closely">
+            <CardListScroll count={data.watched_tasks.length}>
             <Stack spacing={1.4}>
               {data.watched_tasks.map((task) => (
                 <Stack key={task.id} direction="row" justifyContent="space-between" sx={{ p: 1.5, borderRadius: 3, bgcolor: (theme) => surfaceSubtle(theme) }}>
@@ -80,10 +84,12 @@ function MyWorkPage() {
                 </Stack>
               ))}
             </Stack>
+            </CardListScroll>
           </GlassPanel>
         </Grid>
         <Grid item xs={12} lg={6}>
           <GlassPanel title="Mentions" subtitle="Places you were pulled into the conversation">
+            <CardListScroll count={data.mentions.length} rowEstimatePx={96}>
             <Stack spacing={1.4}>
               {data.mentions.map((mention) => (
                 <Stack key={mention.id} sx={{ p: 1.5, borderRadius: 3, bgcolor: (theme) => brandSurfacePinned(theme) }}>
@@ -92,6 +98,7 @@ function MyWorkPage() {
                 </Stack>
               ))}
             </Stack>
+            </CardListScroll>
           </GlassPanel>
         </Grid>
         <Grid item xs={12} lg={6}>

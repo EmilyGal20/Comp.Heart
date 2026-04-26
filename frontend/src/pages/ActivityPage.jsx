@@ -3,6 +3,7 @@ import { Box, Chip, FormControl, InputAdornment, InputLabel, MenuItem, Select, S
 import Clear from "@mui/icons-material/Clear";
 import SearchIcon from "@mui/icons-material/Search";
 import { adminApi, usersApi } from "../api/endpoints";
+import CardListScroll from "../components/CardListScroll";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
 import PageState from "../components/PageState";
@@ -199,6 +200,7 @@ function ActivityPage() {
                 No events match your filters. Try a different search, event type, or time range.
               </Typography>
             ) : (
+              <CardListScroll count={filteredRows.length} rowEstimatePx={96}>
               <Stack spacing={1.4}>
                 {filteredRows.map((row) => (
                   <Stack
@@ -225,6 +227,7 @@ function ActivityPage() {
                   </Stack>
                 ))}
               </Stack>
+              </CardListScroll>
             )}
           </>
         ) : null}

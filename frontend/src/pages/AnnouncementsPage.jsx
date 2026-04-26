@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { announcementsApi, organizationsApi } from "../api/endpoints";
+import CardListScroll from "../components/CardListScroll";
 import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
@@ -69,6 +70,7 @@ function AnnouncementsPage({ importantOnly = false }) {
       <Grid container spacing={3}>
         <Grid item xs={12}>
           <GlassPanel title={importantOnly ? "Pinned and urgent notices" : "Announcement stream"} subtitle="Read, triage, and track communications in one clear place">
+            <CardListScroll count={items.length} rowEstimatePx={120}>
             <Stack spacing={1.5}>
               {items.map((item) => (
                 <Box key={item.id} sx={{ p: 1.8, borderRadius: 3.5, bgcolor: (theme) => (item.is_pinned ? brandSurfacePinned(theme) : surfaceSubtle(theme)), border: (theme) => `1px solid ${borderSubtle(theme)}` }}>
@@ -86,6 +88,7 @@ function AnnouncementsPage({ importantOnly = false }) {
                 </Box>
               ))}
             </Stack>
+            </CardListScroll>
           </GlassPanel>
         </Grid>
       </Grid>

@@ -12,9 +12,8 @@ import {
   KeyboardCommandKey,
   Logout,
   MenuBook,
-  Notes,
-  PersonSearch,
   Notifications,
+  PersonSearch,
   People,
   QueryStats,
   RocketLaunch,
@@ -63,34 +62,32 @@ import { workApi } from "../api/endpoints";
 const drawerWidth = 292;
 
 const navItems = [
-  { label: "Global Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["SUPER_ADMIN"] },
-  { label: "Org Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["ADMIN", "MANAGER"] },
-  { label: "My Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["USER"] },
-  { label: "Control Center", path: "/control-center", icon: <Shield />, roles: ["SUPER_ADMIN"] },
-  { label: "Search", path: "/search", icon: <PersonSearch />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Onboarding", path: "/onboarding", icon: <RocketLaunch />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Organizations", path: "/organizations", icon: <Apartment />, roles: ["SUPER_ADMIN"] },
-  { label: "My Work", path: "/my-work", icon: <WorkOutline />, roles: ["USER"] },
-  { label: "Planning", path: "/planning", icon: <Timeline />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
-  { label: "Approvals", path: "/approvals", icon: <FactCheck />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Chat", path: "/chat", icon: <Forum />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Knowledge", path: "/knowledge", icon: <MenuBook />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Tasks", path: "/tasks", icon: <TaskAlt />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Task archive", path: "/task-archive", icon: <Archive />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Automation", path: "/automation", icon: <Hub />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
-  { label: "Meetings", path: "/meetings", icon: <RecordVoiceOver />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Announcements", path: "/announcements", icon: <Campaign />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Admin Messages", path: "/messages", icon: <Notifications />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Contacts", path: "/contacts", icon: <People />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "People Admin", path: "/employees", icon: <People />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
   { label: "Activity", path: "/activity", icon: <Insights />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Admin Messages", path: "/messages", icon: <Notifications />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "AI", path: "/ai", icon: <AutoAwesome />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Announcements", path: "/announcements", icon: <Campaign />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Approvals", path: "/approvals", icon: <FactCheck />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Automation", path: "/automation", icon: <Hub />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
+  { label: "Chat", path: "/chat", icon: <Forum />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Contacts", path: "/contacts", icon: <People />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Control Center", path: "/control-center", icon: <Shield />, roles: ["SUPER_ADMIN"] },
+  { label: "Global Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["SUPER_ADMIN"] },
+  { label: "Knowledge", path: "/knowledge", icon: <MenuBook />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Meetings", path: "/meetings", icon: <RecordVoiceOver />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "My Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["USER"] },
+  { label: "My Work", path: "/my-work", icon: <WorkOutline />, roles: ["USER"] },
   { label: "Notifications", path: "/notifications", icon: <Notifications />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Reports", path: "/reports", icon: <QueryStats />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
+  { label: "Onboarding", path: "/onboarding", icon: <RocketLaunch />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Org Dashboard", path: "/", icon: <SpaceDashboard />, roles: ["ADMIN", "MANAGER"] },
+  { label: "Organizations", path: "/organizations", icon: <Apartment />, roles: ["SUPER_ADMIN"] },
+  { label: "People Admin", path: "/employees", icon: <People />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
   { label: "Permissions", path: "/permissions", icon: <GppGood />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Profile", path: "/profile", icon: <Notes />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-  { label: "Settings", path: "/settings", icon: <Settings />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
-];
+  { label: "Planning", path: "/planning", icon: <Timeline />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
+  { label: "Reports", path: "/reports", icon: <QueryStats />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
+  { label: "Search", path: "/search", icon: <PersonSearch />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Task archive", path: "/task-archive", icon: <Archive />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Tasks", path: "/tasks", icon: <TaskAlt />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+].sort((a, b) => a.label.localeCompare(b.label, "en", { numeric: true, sensitivity: "base" }));
 
 function AppShell({ children }) {
   const [open, setOpen] = useState(false);
@@ -110,10 +107,11 @@ function AppShell({ children }) {
     [user.role]
   );
 
-  const pageTitle = useMemo(
-    () => allowedNavItems.find((item) => item.path === location.pathname)?.label || "CompHeart",
-    [allowedNavItems, location.pathname]
-  );
+  const pageTitle = useMemo(() => {
+    if (location.pathname === "/profile") return "Profile";
+    if (location.pathname === "/settings") return "Settings";
+    return allowedNavItems.find((item) => item.path === location.pathname)?.label || "CompHeart";
+  }, [allowedNavItems, location.pathname]);
 
   const organizationOptions = useMemo(
     () => organizations.map((entry) => entry.organization || entry),
@@ -159,9 +157,11 @@ function AppShell({ children }) {
   }, [activeOrganizationId, paletteOpen, searchQuery, user.role]);
 
   const quickCommands = useMemo(() => {
-    const base = allowedNavItems.map((item) => ({ type: "command", title: `Open ${item.label}`, path: item.path, id: item.path }));
+    const base = allowedNavItems.map((item) => ({ type: "command", title: `Open ${item.label}`, path: item.path, id: `${item.label}|${item.path}` }));
     return [
       ...base,
+      { type: "command", title: "Open Profile", path: "/profile", id: "open-profile" },
+      { type: "command", title: "Open Settings", path: "/settings", id: "open-settings" },
       { type: "command", title: "Create task", path: "/tasks", id: "create-task" },
       ...(user.role === "SUPER_ADMIN" ? [{ type: "command", title: "Open organizations", path: "/organizations", id: "orgs" }] : []),
     ];
@@ -216,7 +216,7 @@ function AppShell({ children }) {
       <List sx={{ display: "grid", gap: 1 }}>
         {allowedNavItems.map((item) => (
           <ListItemButton
-            key={item.path}
+            key={`${item.label}-${item.path}`}
             component={NavLink}
             to={item.path}
             onClick={() => setOpen(false)}
@@ -337,11 +337,23 @@ function AppShell({ children }) {
             ) : (
               <Chip label={user.organization?.name || "Organization"} variant="outlined" />
             )}
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Avatar sx={{ bgcolor: "secondary.main" }}>
-                {user.full_name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
-              </Avatar>
-              <IconButton color="inherit" onClick={logout}>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <IconButton color="inherit" onClick={() => navigate("/settings")} aria-label="Open settings" title="Settings" size="small" sx={{ p: 0.9 }}>
+                <Settings fontSize="medium" />
+              </IconButton>
+              <IconButton
+                color="inherit"
+                onClick={() => navigate("/profile")}
+                aria-label="Open profile"
+                title="Profile"
+                size="small"
+                sx={{ p: 0.35 }}
+              >
+                <Avatar sx={{ bgcolor: "secondary.main", width: 36, height: 36, fontSize: 14 }}>
+                  {user.full_name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
+                </Avatar>
+              </IconButton>
+              <IconButton color="inherit" onClick={logout} aria-label="Log out">
                 <Logout />
               </IconButton>
             </Stack>

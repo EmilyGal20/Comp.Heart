@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Box, Button, Chip, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import { notificationsApi } from "../api/endpoints";
+import CardListScroll from "../components/CardListScroll";
 import GlassPanel from "../components/GlassPanel";
 import PageState from "../components/PageState";
 import PaginationControls from "../components/PaginationControls";
@@ -137,6 +138,7 @@ function NotificationsPage() {
         />
         {[["Pinned and urgent", grouped.important], ["Recent", grouped.recent], ["Older", grouped.older]].map(([label, items]) => (
           <GlassPanel key={label} title={label} subtitle={`${items.length} notifications`}>
+            <CardListScroll count={items.length} rowEstimatePx={100}>
             <Stack spacing={1.3}>
               {items.length ? items.map((notification) => {
                 const selected = selectedIds.includes(notification.id);
@@ -160,6 +162,7 @@ function NotificationsPage() {
                 );
               }) : <Typography variant="body2" color="text.secondary">Nothing here right now.</Typography>}
             </Stack>
+            </CardListScroll>
           </GlassPanel>
         ))}
         <PaginationControls meta={meta} onChange={setPage} disabled={loading} />

@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import { meetingsApi, tasksApi } from "../api/endpoints";
+import CardListScroll from "../components/CardListScroll";
 import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import PageState from "../components/PageState";
@@ -249,6 +250,7 @@ function MeetingsPage() {
               onRetry={loadList}
               minHeight={180}
             />
+            <CardListScroll count={items.length} rowEstimatePx={100}>
             <Stack spacing={1.3}>
               {items.map((item) => (
                 <Box
@@ -268,6 +270,7 @@ function MeetingsPage() {
                 </Box>
               ))}
             </Stack>
+            </CardListScroll>
             <PaginationControls meta={meta} onChange={setPage} disabled={loading} />
           </GlassPanel>
         </Grid>

@@ -20,6 +20,7 @@ import {
 } from "@mui/material";
 import dayjs from "dayjs";
 import { aiApi, integrationsApi, tasksApi, usersApi, workApi } from "../api/endpoints";
+import CardListScroll from "../components/CardListScroll";
 import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import { borderLaneAccent, borderSubtle, surfaceSubtle } from "../styles/muiSurfaces";
@@ -506,25 +507,27 @@ function TasksPage() {
                 {!loading && !error && tasks.length > 0 ? (
                   <>
                     {view === "list" ? (
-                      <Stack spacing={1.1}>
-                        {tasks.map((task) => (
-                          <Box key={task.id} onClick={() => loadDetail(task.id)} sx={{ p: 1.8, borderRadius: 3.5, cursor: "pointer", bgcolor: (theme) => surfaceSubtle(theme), border: (theme) => `1px solid ${borderSubtle(theme)}` }}>
-                            <Stack direction={{ xs: "column", md: "row" }} spacing={1.2} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }}>
-                              <Box>
-                                <Typography variant="subtitle1">{task.title}</Typography>
-                                <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.6 }}>
-                                  {task.assignee?.full_name || "Unassigned"} · {formatDate(task.due_at)}
-                                </Typography>
-                              </Box>
-                              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                <StatusPill value={task.status} />
-                                <StatusPill value={task.priority} />
-                                <Chip size="small" label={task.sla_status || "on_track"} />
+                      <CardListScroll count={tasks.length}>
+                        <Stack spacing={1.1}>
+                          {tasks.map((task) => (
+                            <Box key={task.id} onClick={() => loadDetail(task.id)} sx={{ p: 1.8, borderRadius: 3.5, cursor: "pointer", bgcolor: (theme) => surfaceSubtle(theme), border: (theme) => `1px solid ${borderSubtle(theme)}` }}>
+                              <Stack direction={{ xs: "column", md: "row" }} spacing={1.2} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }}>
+                                <Box>
+                                  <Typography variant="subtitle1">{task.title}</Typography>
+                                  <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.6 }}>
+                                    {task.assignee?.full_name || "Unassigned"} · {formatDate(task.due_at)}
+                                  </Typography>
+                                </Box>
+                                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                  <StatusPill value={task.status} />
+                                  <StatusPill value={task.priority} />
+                                  <Chip size="small" label={task.sla_status || "on_track"} />
+                                </Stack>
                               </Stack>
-                            </Stack>
-                          </Box>
-                        ))}
-                      </Stack>
+                            </Box>
+                          ))}
+                        </Stack>
+                      </CardListScroll>
                     ) : null}
 
                     {view === "board" ? (
@@ -532,9 +535,11 @@ function TasksPage() {
                         {groupedTasks.map((column) => (
                           <Grid item xs={12} md={6} xl={2.4} key={column.status}>
                             <GlassPanel title={column.status.replaceAll("_", " ")} subtitle={`${column.items.length} tasks`}>
-                              <Stack spacing={1.1}>
-                                {column.items.length ? column.items.map(renderTaskCard) : <Typography variant="body2" sx={{ color: "text.secondary" }}>No tasks in this lane.</Typography>}
-                              </Stack>
+                              <CardListScroll count={column.items.length}>
+                                <Stack spacing={1.1}>
+                                  {column.items.length ? column.items.map(renderTaskCard) : <Typography variant="body2" sx={{ color: "text.secondary" }}>No tasks in this lane.</Typography>}
+                                </Stack>
+                              </CardListScroll>
                             </GlassPanel>
                           </Grid>
                         ))}
@@ -545,31 +550,35 @@ function TasksPage() {
                       <Stack spacing={2}>
                         {calendarGroups.map(([label, items]) => (
                           <GlassPanel key={label} title={label} subtitle={`${items.length} scheduled items`}>
-                            <Stack spacing={1.1}>{items.map(renderTaskCard)}</Stack>
+                            <CardListScroll count={items.length}>
+                              <Stack spacing={1.1}>{items.length ? items.map(renderTaskCard) : <Typography variant="body2" color="text.secondary">No items.</Typography>}</Stack>
+                            </CardListScroll>
                           </GlassPanel>
                         ))}
                       </Stack>
                     ) : null}
 
                     {view === "timeline" ? (
-                      <Stack spacing={1.4}>
-                        {tasks.map((task) => (
-                          <Box key={task.id} onClick={() => loadDetail(task.id)} sx={{ p: 1.8, borderRadius: 3.5, cursor: "pointer", bgcolor: (theme) => surfaceSubtle(theme), borderLeft: (theme) => `3px solid ${borderLaneAccent(theme)}` }}>
-                            <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.5}>
-                              <Box>
-                                <Typography variant="subtitle1">{task.title}</Typography>
-                                <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.6 }}>
-                                  {formatDate(task.created_at)} → {formatDate(task.due_at)}
-                                </Typography>
-                              </Box>
-                              <Stack direction="row" spacing={1}>
-                                <StatusPill value={task.priority} />
-                                <StatusPill value={task.status} />
+                      <CardListScroll count={tasks.length} rowEstimatePx={96}>
+                        <Stack spacing={1.4}>
+                          {tasks.map((task) => (
+                            <Box key={task.id} onClick={() => loadDetail(task.id)} sx={{ p: 1.8, borderRadius: 3.5, cursor: "pointer", bgcolor: (theme) => surfaceSubtle(theme), borderLeft: (theme) => `3px solid ${borderLaneAccent(theme)}` }}>
+                              <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.5}>
+                                <Box>
+                                  <Typography variant="subtitle1">{task.title}</Typography>
+                                  <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.6 }}>
+                                    {formatDate(task.created_at)} → {formatDate(task.due_at)}
+                                  </Typography>
+                                </Box>
+                                <Stack direction="row" spacing={1}>
+                                  <StatusPill value={task.priority} />
+                                  <StatusPill value={task.status} />
+                                </Stack>
                               </Stack>
-                            </Stack>
-                          </Box>
-                        ))}
-                      </Stack>
+                            </Box>
+                          ))}
+                        </Stack>
+                      </CardListScroll>
                     ) : null}
 
                     <PaginationControls meta={meta} page={page} onChange={setPage} />
