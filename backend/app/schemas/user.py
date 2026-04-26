@@ -66,6 +66,10 @@ class UserStatusUpdate(BaseModel):
     is_active: bool
 
 
+class AdminSetUserPasswordRequest(BaseModel):
+    new_password: str = Field(min_length=6, max_length=128)
+
+
 class UserDashboard(BaseModel):
     profile: UserRead
     summary: dict

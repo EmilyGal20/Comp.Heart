@@ -33,7 +33,16 @@ def global_search(db: Session, *, query: str, current_user: User, organization_i
     for task in tasks_query.limit(40).all():
         score = _score(query, task.title, task.description or "", " ".join(task.tags or []))
         if score:
-            groups["tasks"].append({"id": f"task-{task.id}", "title": task.title, "subtitle": f"{task.status} - {task.priority}", "snippet": task.description[:180] if task.description else "", "path": "/tasks", "type": "task", "organization_id": task.organization_id, "score": score})
+            groups["tasks"].append({
+                "id": f"task-{task.id}",
+                "title": task.title,
+                "subtitle": f"{task.status} - {task.priority}",
+                "snippet": task.description[:180] if task.description else "",
+                "path": f"/tasks?taskId={task.id}",
+                "type": "task",
+                "organization_id": task.organization_id,
+                "score": score,
+            })
 
     knowledge_query = db.query(KnowledgeItem)
     if scoped_org_id is not None:
@@ -49,7 +58,16 @@ def global_search(db: Session, *, query: str, current_user: User, organization_i
     for item in meetings_query.limit(20).all():
         score = _score(query, item.title, item.summary or "", item.raw_notes or "")
         if score:
-            groups["meetings"].append({"id": f"meeting-{item.id}", "title": item.title, "subtitle": "Meeting summary", "snippet": item.summary[:180], "path": "/meetings", "type": "meeting", "organization_id": item.organization_id, "score": score})
+            groups["meetings"].append({
+                "id": f"meeting-{item.id}",
+                "title": item.title,
+                "subtitle": "Meeting summary",
+                "snippet": item.summary[:180],
+                "path": f"/meetings/{item.id}",
+                "type": "meeting",
+                "organization_id": item.organization_id,
+                "score": score,
+            })
 
     announcements_query = db.query(Announcement)
     if scoped_org_id is not None:
@@ -86,7 +104,18 @@ def global_search(db: Session, *, query: str, current_user: User, organization_i
     for item in task_messages_query.limit(20).all():
         score = _score(query, item.message)
         if score:
-            groups["discussions"].append({"id": f"task-message-{item.id}", "title": item.task.title if item.task else "Task discussion", "subtitle": "Task thread", "snippet": item.message[:180], "path": "/tasks", "type": "discussion", "organization_id": item.task.organization_id if item.task else None, "score": score})
+            groups["discussions"].append(
+                {
+                    "id": f"task-message-{item.id}",
+                    "title": item.task.title if item.task else "Task discussion",
+                    "subtitle": "Task thread",
+                    "snippet": item.message[:180],
+                    "path": f"/tasks?taskId={item.task_id}" if item.task_id else "/tasks",
+                    "type": "discussion",
+                    "organization_id": item.task.organization_id if item.task else None,
+                    "score": score,
+                }
+            )
 
     chat_query = db.query(ChatMessage).join(ChatChannel, ChatChannel.id == ChatMessage.channel_id)
     if scoped_org_id is not None:

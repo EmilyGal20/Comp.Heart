@@ -14,7 +14,8 @@ from app.schemas.ai import (
 )
 from app.services.ai_service import chat, generate_subtasks, generate_tasks, suggest_task_plan
 from app.services.task_service import get_task_by_id, can_view_task
-from app.utils.dependencies import get_current_user
+from app.core.permissions import ROLE_SUPER_ADMIN
+from app.utils.dependencies import get_current_user, resolve_org_scope
 
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -26,11 +27,15 @@ def chat_with_ai(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    org_kw = None
+    if current_user.role == ROLE_SUPER_ADMIN and payload.organization_id is not None:
+        org_kw = resolve_org_scope(payload.organization_id, current_user, db, allow_global=False)
     conversation, answer, references, used_openai = chat(
         db,
         message=payload.message,
         conversation_id=payload.conversation_id,
         user=current_user,
+        organization_id=org_kw,
     )
     return {
         "conversation_id": conversation.id,

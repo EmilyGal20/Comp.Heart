@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Add, AttachFile, AutoAwesome, CalendarMonth, MailOutline, Timeline, ViewKanban, ViewList } from "@mui/icons-material";
+import { Add, AttachFile, AutoAwesome, CalendarMonth, CheckCircle, MailOutline, Timeline, ViewKanban, ViewList } from "@mui/icons-material";
 import {
   Alert,
   Box,
@@ -22,10 +22,12 @@ import dayjs from "dayjs";
 import { aiApi, integrationsApi, tasksApi, usersApi, workApi } from "../api/endpoints";
 import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
+import { borderLaneAccent, borderSubtle, surfaceSubtle } from "../styles/muiSurfaces";
 import PageHeader from "../components/PageHeader";
 import PageState from "../components/PageState";
 import PaginationControls from "../components/PaginationControls";
 import StatusPill from "../components/StatusPill";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
 
@@ -52,6 +54,14 @@ function formatDateInput(value) {
   return value ? dayjs(value).format("YYYY-MM-DDTHH:mm") : "";
 }
 
+function commentAuthorLabel(c) {
+  if (c?.author?.full_name) return c.author.full_name;
+  if (c?.author?.email) return c.author.email;
+  if (c?.user?.full_name) return c.user.full_name;
+  if (c?.user?.email) return c.user.email;
+  return "Unknown user";
+}
+
 function toPayload(form, organizationId) {
   return {
     ...form,
@@ -68,6 +78,8 @@ function toPayload(form, organizationId) {
 function TasksPage() {
   const { user, activeOrganizationId } = useAuth();
   const { versions, lastEvent, connectionState } = useRealtime();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const organizationId = activeOrganizationId || user.organization_id;
 
   const [tasks, setTasks] = useState([]);
@@ -87,6 +99,7 @@ function TasksPage() {
   const [messages, setMessages] = useState([]);
   const [messageMeta, setMessageMeta] = useState(null);
   const [messagePage, setMessagePage] = useState(1);
+  const [markingTaskDone, setMarkingTaskDone] = useState(false);
   const [detailError, setDetailError] = useState("");
 
   const [filters, setFilters] = useState({ search: "", status: "", priority: "", assignee_id: "", watched_only: false });
@@ -246,6 +259,18 @@ function TasksPage() {
     setPage(1);
   }, [organizationId, filters.search, filters.status, filters.priority, filters.assignee_id, filters.watched_only]);
 
+  const openTaskId = searchParams.get("taskId");
+  useEffect(() => {
+    if (!openTaskId) return;
+    const n = Number(openTaskId);
+    if (Number.isNaN(n) || n <= 0) {
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    void loadDetail(n, 1);
+    setSearchParams({}, { replace: true });
+  }, [openTaskId, setSearchParams]);
+
   useEffect(() => {
     if (!selected?.id || !lastEvent?.event_type) return;
     if (lastEvent.event_type.startsWith("task_") || lastEvent.event_type.startsWith("chat_") || lastEvent.event_type.startsWith("notification_")) {
@@ -279,6 +304,24 @@ function TasksPage() {
     await tasksApi.addComment(selected.id, { content: commentDraft });
     setCommentDraft("");
     await loadDetail(selected.id, messagePage);
+  };
+
+  const markTaskDone = async () => {
+    if (!selected?.id) return;
+    setMarkingTaskDone(true);
+    setDetailError("");
+    const id = selected.id;
+    try {
+      await tasksApi.updateStatus(id, "DONE");
+      resetDetail();
+      await loadList();
+      navigate(`/task-archive?taskId=${id}`);
+    } catch (e) {
+      const d = e.response?.data?.detail;
+      setDetailError(Array.isArray(d) ? d.map((x) => x?.msg || x).join(" ") : d || e.message || "Could not mark this task as done");
+    } finally {
+      setMarkingTaskDone(false);
+    }
   };
 
   const sendMessage = async () => {
@@ -395,9 +438,9 @@ function TasksPage() {
   };
 
   const renderTaskCard = (task) => (
-    <Box key={task.id} onClick={() => loadDetail(task.id)} sx={{ p: 1.7, borderRadius: 3.5, cursor: "pointer", bgcolor: "rgba(255,255,255,0.03)", border: "1px solid rgba(148,163,184,0.08)" }}>
+    <Box key={task.id} onClick={() => loadDetail(task.id)} sx={{ p: 1.7, borderRadius: 3.5, cursor: "pointer", bgcolor: (theme) => surfaceSubtle(theme), border: (theme) => `1px solid ${borderSubtle(theme)}` }}>
       <Typography variant="subtitle2">{task.title}</Typography>
-      <Typography variant="body2" sx={{ mt: 0.7, color: "rgba(226,232,240,0.62)" }}>
+      <Typography variant="body2" sx={{ mt: 0.7, color: "text.secondary" }}>
         {task.assignee?.full_name || "Unassigned"} · {formatDate(task.due_at)}
       </Typography>
       <Stack direction="row" spacing={1} sx={{ mt: 1.1 }} flexWrap="wrap" useFlexGap>
@@ -465,11 +508,11 @@ function TasksPage() {
                     {view === "list" ? (
                       <Stack spacing={1.1}>
                         {tasks.map((task) => (
-                          <Box key={task.id} onClick={() => loadDetail(task.id)} sx={{ p: 1.8, borderRadius: 3.5, cursor: "pointer", bgcolor: "rgba(255,255,255,0.03)", border: "1px solid rgba(148,163,184,0.08)" }}>
+                          <Box key={task.id} onClick={() => loadDetail(task.id)} sx={{ p: 1.8, borderRadius: 3.5, cursor: "pointer", bgcolor: (theme) => surfaceSubtle(theme), border: (theme) => `1px solid ${borderSubtle(theme)}` }}>
                             <Stack direction={{ xs: "column", md: "row" }} spacing={1.2} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }}>
                               <Box>
                                 <Typography variant="subtitle1">{task.title}</Typography>
-                                <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)", mt: 0.6 }}>
+                                <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.6 }}>
                                   {task.assignee?.full_name || "Unassigned"} · {formatDate(task.due_at)}
                                 </Typography>
                               </Box>
@@ -490,7 +533,7 @@ function TasksPage() {
                           <Grid item xs={12} md={6} xl={2.4} key={column.status}>
                             <GlassPanel title={column.status.replaceAll("_", " ")} subtitle={`${column.items.length} tasks`}>
                               <Stack spacing={1.1}>
-                                {column.items.length ? column.items.map(renderTaskCard) : <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.56)" }}>No tasks in this lane.</Typography>}
+                                {column.items.length ? column.items.map(renderTaskCard) : <Typography variant="body2" sx={{ color: "text.secondary" }}>No tasks in this lane.</Typography>}
                               </Stack>
                             </GlassPanel>
                           </Grid>
@@ -511,11 +554,11 @@ function TasksPage() {
                     {view === "timeline" ? (
                       <Stack spacing={1.4}>
                         {tasks.map((task) => (
-                          <Box key={task.id} onClick={() => loadDetail(task.id)} sx={{ p: 1.8, borderRadius: 3.5, cursor: "pointer", bgcolor: "rgba(255,255,255,0.03)", borderLeft: "3px solid rgba(116,184,255,0.75)" }}>
+                          <Box key={task.id} onClick={() => loadDetail(task.id)} sx={{ p: 1.8, borderRadius: 3.5, cursor: "pointer", bgcolor: (theme) => surfaceSubtle(theme), borderLeft: (theme) => `3px solid ${borderLaneAccent(theme)}` }}>
                             <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.5}>
                               <Box>
                                 <Typography variant="subtitle1">{task.title}</Typography>
-                                <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)", mt: 0.6 }}>
+                                <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.6 }}>
                                   {formatDate(task.created_at)} → {formatDate(task.due_at)}
                                 </Typography>
                               </Box>
@@ -546,7 +589,7 @@ function TasksPage() {
               <Stack direction="row" justifyContent="space-between" spacing={1.2}>
                 <Box>
                   <Typography variant="h5">{selected.title}</Typography>
-                  <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.64)", mt: 0.7 }}>
+                  <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.7 }}>
                     {selected.creator?.full_name || "Unknown creator"} · {formatDate(selected.created_at)}
                   </Typography>
                 </Box>
@@ -558,6 +601,19 @@ function TasksPage() {
               </Stack>
 
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {canEditSelected && selected.status !== "DONE" ? (
+                  <Button
+                    variant="contained"
+                    startIcon={<CheckCircle />}
+                    disabled={markingTaskDone}
+                    onClick={() => { void markTaskDone(); }}
+                  >
+                    {markingTaskDone ? "Finishing…" : "Mark as done"}
+                  </Button>
+                ) : null}
+                {selected.status === "DONE" ? (
+                  <Button variant="outlined" onClick={() => navigate(`/task-archive?taskId=${selected.id}`)}>View in archive</Button>
+                ) : null}
                 <Button variant="outlined" onClick={toggleWatch}>{isWatching ? "Unwatch" : "Watch"}</Button>
                 {canEditSelected ? <Button variant="outlined" onClick={saveTask}>Save changes</Button> : null}
                 <Button variant="outlined" onClick={requestApproval}>Request approval</Button>
@@ -611,23 +667,23 @@ function TasksPage() {
                   <Button variant="contained" onClick={sendComment}>Post comment</Button>
                   <Divider />
                   {comments.length ? comments.map((item) => (
-                    <Box key={item.id} sx={{ p: 1.6, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
-                      <Typography variant="subtitle2">{item.user?.full_name || "Unknown"}</Typography>
-                      <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.54)" }}>{formatDate(item.created_at)}</Typography>
+                    <Box key={item.id} sx={{ p: 1.6, borderRadius: 3, bgcolor: (theme) => surfaceSubtle(theme) }}>
+                      <Typography variant="subtitle2">{commentAuthorLabel(item)}</Typography>
+                      <Typography variant="caption" sx={{ color: "text.secondary" }}>{formatDate(item.created_at)}</Typography>
                       <Typography variant="body2" sx={{ mt: 0.8, whiteSpace: "pre-wrap" }}>{item.content}</Typography>
                     </Box>
-                  )) : <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>No comments yet.</Typography>}
+                  )) : <Typography variant="body2" sx={{ color: "text.secondary" }}>No comments yet.</Typography>}
                 </Stack>
               ) : null}
 
               {tab === 1 ? (
                 <Stack spacing={1.2}>
                   {activity.length ? activity.map((item) => (
-                    <Box key={item.id} sx={{ p: 1.6, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
+                    <Box key={item.id} sx={{ p: 1.6, borderRadius: 3, bgcolor: (theme) => surfaceSubtle(theme) }}>
                       <Typography variant="subtitle2">{item.message}</Typography>
-                      <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.64)", mt: 0.7 }}>{item.action_type} · {formatDate(item.created_at)}</Typography>
+                      <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.7 }}>{item.action_type} · {formatDate(item.created_at)}</Typography>
                     </Box>
-                  )) : <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>No activity yet.</Typography>}
+                  )) : <Typography variant="body2" sx={{ color: "text.secondary" }}>No activity yet.</Typography>}
                 </Stack>
               ) : null}
 
@@ -637,12 +693,12 @@ function TasksPage() {
                   <Button variant="contained" onClick={sendMessage}>Send message</Button>
                   <Divider />
                   {messages.length ? messages.map((item) => (
-                    <Box key={item.id} sx={{ p: 1.6, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
+                    <Box key={item.id} sx={{ p: 1.6, borderRadius: 3, bgcolor: (theme) => surfaceSubtle(theme) }}>
                       <Typography variant="subtitle2">{item.user?.full_name || "Unknown"}</Typography>
-                      <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.54)" }}>{formatDate(item.created_at)}</Typography>
+                      <Typography variant="caption" sx={{ color: "text.secondary" }}>{formatDate(item.created_at)}</Typography>
                       <Typography variant="body2" sx={{ mt: 0.8, whiteSpace: "pre-wrap" }}>{item.message}</Typography>
                     </Box>
-                  )) : <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>No messages yet.</Typography>}
+                  )) : <Typography variant="body2" sx={{ color: "text.secondary" }}>No messages yet.</Typography>}
                   <PaginationControls meta={messageMeta} page={messagePage} onChange={(nextPage) => loadDetail(selected.id, nextPage)} />
                 </Stack>
               ) : null}
@@ -654,14 +710,14 @@ function TasksPage() {
                     <input hidden type="file" onChange={uploadAttachment} />
                   </Button>
                   {attachments.length ? attachments.map((item) => (
-                    <Stack key={item.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 1.5, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
+                    <Stack key={item.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 1.5, borderRadius: 3, bgcolor: (theme) => surfaceSubtle(theme) }}>
                       <Box>
                         <Typography variant="subtitle2">{item.file_name}</Typography>
-                        <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>Uploaded {formatDate(item.created_at)}</Typography>
+                        <Typography variant="body2" sx={{ color: "text.secondary" }}>Uploaded {formatDate(item.created_at)}</Typography>
                       </Box>
                       <Button onClick={() => downloadAttachment(item)}>Download</Button>
                     </Stack>
-                  )) : <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>No attachments yet.</Typography>}
+                  )) : <Typography variant="body2" sx={{ color: "text.secondary" }}>No attachments yet.</Typography>}
                 </Stack>
               ) : null}
 
@@ -670,7 +726,7 @@ function TasksPage() {
                   <TextField fullWidth label="New subtask" value={subtaskTitle} onChange={(event) => setSubtaskTitle(event.target.value)} />
                   <Button variant="contained" onClick={createSubtask}>Create subtask</Button>
                   {subtasks.length ? subtasks.map((item) => (
-                    <Box key={item.id} sx={{ p: 1.5, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
+                    <Box key={item.id} sx={{ p: 1.5, borderRadius: 3, bgcolor: (theme) => surfaceSubtle(theme) }}>
                       <Stack direction="row" justifyContent="space-between" spacing={1}>
                         <Typography variant="subtitle2">{item.title}</Typography>
                         <Stack direction="row" spacing={1}>
@@ -679,7 +735,7 @@ function TasksPage() {
                         </Stack>
                       </Stack>
                     </Box>
-                  )) : <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>No subtasks yet.</Typography>}
+                  )) : <Typography variant="body2" sx={{ color: "text.secondary" }}>No subtasks yet.</Typography>}
                 </Stack>
               ) : null}
 
@@ -691,7 +747,7 @@ function TasksPage() {
                     <Button variant="outlined" onClick={() => runAi("subtasks")}>Break into subtasks</Button>
                   </Stack>
                   <GlassPanel title="AI result" subtitle="Task-aware guidance within your organization scope">
-                    <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", color: "rgba(226,232,240,0.78)" }}>
+                    <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", color: "text.primary" }}>
                       {aiResult || "Run an AI helper to generate a task summary, suggested next steps, or subtask plan."}
                     </Typography>
                   </GlassPanel>
@@ -740,11 +796,11 @@ function TasksPage() {
             <TextField fullWidth multiline minRows={4} label="Goal or prompt" value={aiPrompt} onChange={(event) => setAiPrompt(event.target.value)} />
             <Button variant="contained" startIcon={<AutoAwesome />} onClick={generateAiTasks}>Generate suggestions</Button>
             {aiSuggestions.map((item, index) => (
-              <Box key={`${item.title}-${index}`} sx={{ p: 1.6, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
+              <Box key={`${item.title}-${index}`} sx={{ p: 1.6, borderRadius: 3, bgcolor: (theme) => surfaceSubtle(theme) }}>
                 <Stack direction="row" justifyContent="space-between" spacing={1}>
                   <Box>
                     <Typography variant="subtitle2">{item.title}</Typography>
-                    <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.64)", mt: 0.7 }}>{item.rationale}</Typography>
+                    <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.7 }}>{item.rationale}</Typography>
                   </Box>
                   <Button
                     variant={selectedSuggestions.includes(index) ? "contained" : "outlined"}

@@ -26,6 +26,7 @@ import PageHeader from "../components/PageHeader";
 import PageState from "../components/PageState";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
+import { surfaceSubtle, surfaceSubtleWeaker } from "../styles/muiSurfaces";
 
 const emptyChannel = { name: "", description: "", channel_type: "ORG", team_id: "", is_private: false };
 
@@ -288,7 +289,7 @@ function ChatPage() {
                       direction="row"
                       spacing={1.4}
                       alignItems="flex-start"
-                      sx={{ p: 1.25, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.03)" }}
+                      sx={{ p: 1.25, borderRadius: 2.5, bgcolor: (theme) => surfaceSubtle(theme) }}
                     >
                       <Avatar sx={{ width: 38, height: 38, bgcolor: "secondary.main" }}>
                         {(entry.user?.full_name || "?").split(" ").map((part) => part[0]).join("").slice(0, 2)}
@@ -307,7 +308,7 @@ function ChatPage() {
                     </Stack>
                   ))}
                   {!messages.length ? (
-                    <Box sx={{ p: 4, borderRadius: 3, textAlign: "center", bgcolor: "rgba(255,255,255,0.025)" }}>
+                    <Box sx={{ p: 4, borderRadius: 3, textAlign: "center", bgcolor: (theme) => surfaceSubtleWeaker(theme) }}>
                       <Typography variant="subtitle1">No conversation yet</Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                         Send a message to start the thread and establish a clear collaboration rhythm.
@@ -378,7 +379,7 @@ function ChatPage() {
                   direction="row"
                   justifyContent="space-between"
                   alignItems="center"
-                  sx={{ p: 1.4, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.03)" }}
+                  sx={{ p: 1.4, borderRadius: 2.5, bgcolor: (theme) => surfaceSubtle(theme) }}
                 >
                   <Box>
                     <Typography variant="subtitle2">{person.full_name}</Typography>

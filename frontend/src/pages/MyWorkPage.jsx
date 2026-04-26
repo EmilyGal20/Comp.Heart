@@ -7,6 +7,7 @@ import PageHeader from "../components/PageHeader";
 import PageState from "../components/PageState";
 import StatusPill from "../components/StatusPill";
 import { useRealtime } from "../store/RealtimeContext";
+import { brandSurfacePinned, surfaceSubtle } from "../styles/muiSurfaces";
 
 function MyWorkPage() {
   const { versions } = useRealtime();
@@ -53,10 +54,10 @@ function MyWorkPage() {
           <GlassPanel title="Assigned tasks" subtitle="What needs movement now">
             <Stack spacing={1.4}>
               {data.my_tasks.map((task) => (
-                <Stack key={task.id} direction="row" justifyContent="space-between" sx={{ p: 1.5, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
+                <Stack key={task.id} direction="row" justifyContent="space-between" sx={{ p: 1.5, borderRadius: 3, bgcolor: (theme) => surfaceSubtle(theme) }}>
                   <div>
                     <Typography variant="subtitle2">{task.title}</Typography>
-                    <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.64)" }}>
+                    <Typography variant="body2" color="text.secondary">
                       Due {task.due_at ? new Date(task.due_at).toLocaleString() : "TBD"}
                     </Typography>
                   </div>
@@ -73,7 +74,7 @@ function MyWorkPage() {
           <GlassPanel title="Watched tasks" subtitle="Work you asked to follow closely">
             <Stack spacing={1.4}>
               {data.watched_tasks.map((task) => (
-                <Stack key={task.id} direction="row" justifyContent="space-between" sx={{ p: 1.5, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}>
+                <Stack key={task.id} direction="row" justifyContent="space-between" sx={{ p: 1.5, borderRadius: 3, bgcolor: (theme) => surfaceSubtle(theme) }}>
                   <Typography variant="subtitle2">{task.title}</Typography>
                   <StatusPill value={task.sla_status} />
                 </Stack>
@@ -85,9 +86,9 @@ function MyWorkPage() {
           <GlassPanel title="Mentions" subtitle="Places you were pulled into the conversation">
             <Stack spacing={1.4}>
               {data.mentions.map((mention) => (
-                <Stack key={mention.id} sx={{ p: 1.5, borderRadius: 3, bgcolor: "rgba(116,184,255,0.08)" }}>
+                <Stack key={mention.id} sx={{ p: 1.5, borderRadius: 3, bgcolor: (theme) => brandSurfacePinned(theme) }}>
                   <Typography variant="subtitle2">{mention.title}</Typography>
-                  <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.68)" }}>{mention.message}</Typography>
+                  <Typography variant="body2" color="text.secondary">{mention.message}</Typography>
                 </Stack>
               ))}
             </Stack>

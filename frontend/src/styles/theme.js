@@ -17,7 +17,7 @@ function buildPalette(mode) {
       divider: "rgba(15, 23, 42, 0.08)",
       text: {
         primary: "#0f172a",
-        secondary: "rgba(15, 23, 42, 0.72)",
+        secondary: "rgba(15, 23, 42, 0.68)",
       },
     };
   }
@@ -140,6 +140,14 @@ export function buildTheme(mode = "dark") {
           paper: {
             borderRadius: 14,
           },
+        },
+      },
+      MuiAppBar: {
+        styleOverrides: {
+          root: ({ ownerState, theme: t }) =>
+            ownerState?.color === "transparent" && t.palette.mode === "light"
+              ? { color: t.palette.text.primary }
+              : undefined,
         },
       },
       MuiTableCell: {

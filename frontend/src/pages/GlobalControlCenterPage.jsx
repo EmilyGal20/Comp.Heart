@@ -8,6 +8,7 @@ import MetricCard from "../components/MetricCard";
 import PageState from "../components/PageState";
 import PageHeader from "../components/PageHeader";
 import { useRealtime } from "../store/RealtimeContext";
+import { brandSurfacePinned, surfaceSubtle } from "../styles/muiSurfaces";
 
 function GlobalControlCenterPage() {
   const navigate = useNavigate();
@@ -114,7 +115,7 @@ function GlobalControlCenterPage() {
             <GlassPanel title="At-risk organizations" subtitle="Highest overdue pressure and operational drift">
               <Stack spacing={1.2}>
                 {atRiskOrganizations.length ? atRiskOrganizations.map((item) => (
-                  <Stack key={item.id} sx={{ p: 1.6, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+                  <Stack key={item.id} sx={{ p: 1.6, borderRadius: 2.5, bgcolor: (theme) => surfaceSubtle(theme) }}>
                     <Typography variant="subtitle2">{item.name}</Typography>
                     <Typography variant="body2" color="text.secondary">{item.overdue_tasks} overdue tasks - {item.tasks} total tasks</Typography>
                   </Stack>
@@ -138,7 +139,7 @@ function GlobalControlCenterPage() {
             <GlassPanel title="Important announcements" subtitle="Pinned and recent platform-wide notices">
               <Stack spacing={1.2}>
                 {importantAnnouncements.length ? importantAnnouncements.map((item) => (
-                  <Stack key={item.id} sx={{ p: 1.6, borderRadius: 2.5, bgcolor: item.is_pinned ? "rgba(116,184,255,0.08)" : "rgba(255,255,255,0.03)" }}>
+                  <Stack key={item.id} sx={{ p: 1.6, borderRadius: 2.5, bgcolor: (theme) => (item.is_pinned ? brandSurfacePinned(theme) : surfaceSubtle(theme)) }}>
                     <Typography variant="subtitle2">{item.title}</Typography>
                     <Typography variant="body2" color="text.secondary">{item.severity}</Typography>
                   </Stack>

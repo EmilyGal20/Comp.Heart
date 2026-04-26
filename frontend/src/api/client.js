@@ -1,7 +1,15 @@
 import axios from "axios";
 
 const STORAGE_KEY = "compheart-session";
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:7155/api";
+
+const rawApiBase = import.meta.env.VITE_API_BASE_URL;
+// Dev + Vite proxy: use same-origin /api. Production build: point at the API host unless overridden.
+export const API_BASE_URL =
+  rawApiBase != null && rawApiBase !== ""
+    ? rawApiBase
+    : import.meta.env.DEV
+      ? "/api"
+      : "http://localhost:7155/api";
 export const APP_AUTH_EXPIRED_EVENT = "compheart:auth-expired";
 export const APP_API_ERROR_EVENT = "compheart:api-error";
 
@@ -59,5 +67,27 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+/**
+ * WebSocket URL for /ws/live. In dev (with Vite proxy), use same host as the page so LAN demos work.
+ * If VITE_API_BASE_URL is set, derive host from that instead.
+ */
+export function buildLiveWebSocketUrl() {
+  const raw = import.meta.env.VITE_API_BASE_URL;
+  if (import.meta.env.DEV && (raw == null || raw === "")) {
+    const url = new URL("/ws/live", window.location.origin);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    return url;
+  }
+  const base = API_BASE_URL;
+  if (base.startsWith("/")) {
+    const url = new URL("/ws/live", window.location.origin);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    return url;
+  }
+  const url = new URL(base.replace(/\/api\/?$/, "/ws/live"));
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  return url;
+}
 
 export default api;

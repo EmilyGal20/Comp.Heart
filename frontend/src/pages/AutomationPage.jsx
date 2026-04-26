@@ -4,6 +4,7 @@ import { automationApi } from "../api/endpoints";
 import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
+import { borderSubtle, surfaceSubtle } from "../styles/muiSurfaces";
 import { useAuth } from "../store/AuthContext";
 
 const initialForm = {
@@ -59,12 +60,12 @@ function AutomationPage() {
             <Grid container spacing={2}>
               {rules.map((rule) => (
                 <Grid item xs={12} lg={6} key={rule.id}>
-                  <Box sx={{ p: 1.8, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.03)", border: "1px solid rgba(148,163,184,0.08)" }}>
+                  <Box sx={{ p: 1.8, borderRadius: 3.5, bgcolor: (theme) => surfaceSubtle(theme), border: (theme) => `1px solid ${borderSubtle(theme)}` }}>
                     <Stack direction="row" justifyContent="space-between" spacing={1}>
                       <Typography variant="subtitle1">{rule.name}</Typography>
                       <Switch checked={rule.is_enabled} onChange={() => automationApi.toggle(rule.id).then(load)} />
                     </Stack>
-                    <Typography variant="body2" sx={{ mt: 0.7, color: "rgba(226,232,240,0.64)" }}>{rule.description}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.7 }}>{rule.description}</Typography>
                     <Stack direction="row" spacing={1} sx={{ mt: 1.2 }} flexWrap="wrap" useFlexGap>
                       <Chip size="small" label={rule.trigger_type} color="info" />
                       <Chip size="small" label={rule.last_triggered_at ? "Recently triggered" : "No runs yet"} />

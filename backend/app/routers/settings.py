@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.permissions import ROLE_ADMIN
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.settings import (
+    ChangeOwnPasswordRequest,
     OrganizationSettingsRead,
     OrganizationSettingsUpdate,
     ProfileSettingsRead,
@@ -13,7 +14,8 @@ from app.schemas.settings import (
     WorkspaceSettingsUpdate,
 )
 from app.services.settings_service import get_or_create_organization_setting, get_or_create_workspace_setting
-from app.utils.dependencies import get_current_user, require_min_role
+from app.utils.dependencies import get_current_user, require_min_role, resolve_org_scope
+from app.utils.security import hash_password, verify_password
 
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -86,25 +88,45 @@ def put_workspace_settings(
     return workspace
 
 
+@router.put("/password", status_code=200)
+def change_own_password(
+    payload: ChangeOwnPasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not verify_password(payload.current_password, current_user.password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different from the current password")
+    current_user.password = hash_password(payload.new_password)
+    db.add(current_user)
+    db.commit()
+    return {"updated": True}
+
+
 @router.get("/organization", response_model=OrganizationSettingsRead)
 def get_org_settings(
+    organization_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_min_role(ROLE_ADMIN)),
 ):
-    if current_user.role == "SUPER_ADMIN" and not current_user.organization_id:
-        raise HTTPException(status_code=400, detail="Organization context required")
-    return get_or_create_organization_setting(db, current_user.organization_id)
+    org_id = resolve_org_scope(organization_id, current_user, db, allow_global=False)
+    if org_id is None:
+        raise HTTPException(status_code=400, detail="organization_id is required to load organization settings")
+    return get_or_create_organization_setting(db, org_id)
 
 
 @router.put("/organization", response_model=OrganizationSettingsRead)
 def put_org_settings(
     payload: OrganizationSettingsUpdate,
+    organization_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_min_role(ROLE_ADMIN)),
 ):
-    if current_user.role == "SUPER_ADMIN" and not current_user.organization_id:
-        raise HTTPException(status_code=400, detail="Organization context required")
-    setting = get_or_create_organization_setting(db, current_user.organization_id)
+    org_id = resolve_org_scope(organization_id, current_user, db, allow_global=False)
+    if org_id is None:
+        raise HTTPException(status_code=400, detail="organization_id is required to update organization settings")
+    setting = get_or_create_organization_setting(db, org_id)
     setting.default_sla_hours = payload.default_sla_hours
     setting.require_approval_for_critical = payload.require_approval_for_critical
     setting.recurring_auto_run = payload.recurring_auto_run

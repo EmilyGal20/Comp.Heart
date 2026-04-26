@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Snackbar } from "@mui/material";
 import { useAuth } from "./AuthContext";
-import { API_BASE_URL, APP_AUTH_EXPIRED_EVENT } from "../api/client";
+import { APP_AUTH_EXPIRED_EVENT, buildLiveWebSocketUrl } from "../api/client";
 
 const RealtimeContext = createContext(null);
 
@@ -63,8 +63,7 @@ export function RealtimeProvider({ children }) {
       return undefined;
     }
 
-    const url = new URL(API_BASE_URL.replace(/\/api$/, "/ws/live"));
-    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    const url = buildLiveWebSocketUrl();
     url.searchParams.set("token", token);
     if (user.role === "SUPER_ADMIN" && activeOrganizationId) {
       url.searchParams.set("scope_org_id", String(activeOrganizationId));

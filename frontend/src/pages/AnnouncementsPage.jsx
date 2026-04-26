@@ -4,6 +4,7 @@ import { announcementsApi, organizationsApi } from "../api/endpoints";
 import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
+import { borderSubtle, brandSurfacePinned, surfaceSubtle } from "../styles/muiSurfaces";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
 
@@ -70,11 +71,11 @@ function AnnouncementsPage({ importantOnly = false }) {
           <GlassPanel title={importantOnly ? "Pinned and urgent notices" : "Announcement stream"} subtitle="Read, triage, and track communications in one clear place">
             <Stack spacing={1.5}>
               {items.map((item) => (
-                <Box key={item.id} sx={{ p: 1.8, borderRadius: 3.5, bgcolor: item.is_pinned ? "rgba(116,184,255,0.08)" : "rgba(255,255,255,0.03)", border: "1px solid rgba(148,163,184,0.08)" }}>
+                <Box key={item.id} sx={{ p: 1.8, borderRadius: 3.5, bgcolor: (theme) => (item.is_pinned ? brandSurfacePinned(theme) : surfaceSubtle(theme)), border: (theme) => `1px solid ${borderSubtle(theme)}` }}>
                   <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.5}>
                     <Box>
                       <Typography variant="subtitle1">{item.title}</Typography>
-                      <Typography variant="body2" sx={{ mt: 0.8, color: "rgba(226,232,240,0.68)", whiteSpace: "pre-wrap" }}>{item.content}</Typography>
+                      <Typography variant="body2" color="text.primary" sx={{ mt: 0.8, whiteSpace: "pre-wrap" }}>{item.content}</Typography>
                     </Box>
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                       {item.is_pinned ? <Chip size="small" color="secondary" label="Pinned" /> : null}

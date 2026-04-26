@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = True
     rate_limit_requests: int = 300
     rate_limit_window_seconds: int = 60
+    # Comma-separated browser origins, e.g. for LAN demo when the app is not same-origin:8086:
+    #   CORS_EXTRA_ORIGINS=http://192.168.1.5:8069,http://myhost.local:8069
+    cors_extra_origins: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

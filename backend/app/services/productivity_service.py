@@ -195,20 +195,27 @@ def list_meetings(db: Session, *, current_user: User):
 
 
 def create_tasks_from_meeting(db: Session, *, meeting: MeetingSummary, actor: User):
+    # Assignee must live in the meeting's org. Super admins and cross-org viewers often use a
+    # home org; forcing actor.id as assignee caused 400 "Assignee must belong to the same organization."
+    assignee_in_org = actor.id if actor.organization_id == meeting.organization_id else None
     created = []
-    for action_item in meeting.action_items:
+    for action_item in meeting.action_items or []:
+        if not (action_item and str(action_item).strip()):
+            continue
+        title = str(action_item).strip()[:220]
+        description = f"From meeting: {meeting.title}\n\n{action_item}\n\n(Generated from meeting summary #{meeting.id}.)"[:10000]
         payload = type(
             "MeetingTaskPayload",
             (),
             {
-                "title": action_item,
-                "description": f"Created from meeting summary: {meeting.title}",
+                "title": title,
+                "description": description,
                 "status": "TODO",
                 "priority": "medium",
-                "tags": ["meeting-action"],
+                "tags": ["meeting-action", "meeting"],
                 "related_knowledge_ids": [],
-                "external_refs": [],
-                "assignee_id": actor.id,
+                "external_refs": [f"Meeting summary #{meeting.id}"],
+                "assignee_id": assignee_in_org,
                 "due_at": None,
                 "sla_hours": 24,
                 "related_knowledge_id": None,

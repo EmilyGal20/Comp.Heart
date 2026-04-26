@@ -61,3 +61,8 @@ class OrganizationSettingsUpdate(BaseModel):
     recurring_auto_run: bool = True
     slack_notifications_enabled: bool = False
     email_notifications_enabled: bool = True
+
+
+class ChangeOwnPasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=6, max_length=128)

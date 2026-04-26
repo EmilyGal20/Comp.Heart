@@ -10,6 +10,7 @@ import PageHeader from "../components/PageHeader";
 import StatusPill from "../components/StatusPill";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
+import { brandSurfacePinned, surfaceSubtle } from "../styles/muiSurfaces";
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -30,7 +31,13 @@ function DashboardPage() {
   const params = activeOrganizationId ? { organization_id: activeOrganizationId } : {};
   const announcementItems = announcements.slice(0, 4);
   const executionItems = user.role === "USER" ? personal?.my_tasks || [] : summary?.focus_items || [];
-  const contextItems = user.role === "USER" ? [...notes.slice(0, 2), ...meetings.slice(0, 2)] : risk.slice(0, 4);
+  const contextItems =
+    user.role === "USER"
+      ? [
+          ...notes.slice(0, 2).map((item) => ({ ...item, _kind: "note" })),
+          ...meetings.slice(0, 2).map((item) => ({ ...item, _kind: "meeting" })),
+        ]
+      : risk.slice(0, 4);
 
   const load = async () => {
     setLoading(true);
@@ -99,7 +106,7 @@ function DashboardPage() {
           <GlassPanel title="Important announcements" subtitle="Pinned updates, admin messages, and latest operating guidance" action={<Stack direction="row" spacing={1}><Button size="small" variant="outlined" onClick={() => navigate("/messages")}>Important messages</Button><Button size="small" variant="outlined" onClick={() => navigate("/announcements")}>All announcements</Button></Stack>}>
             <Stack spacing={1.4}>
               {announcementItems.length ? announcementItems.map((item) => (
-                <Stack key={item.id} sx={{ p: 1.6, borderRadius: 2.5, bgcolor: item.is_pinned ? "rgba(116,184,255,0.08)" : "rgba(255,255,255,0.03)" }}>
+                <Stack key={item.id} sx={{ p: 1.6, borderRadius: 2.5, bgcolor: (theme) => (item.is_pinned ? brandSurfacePinned(theme) : surfaceSubtle(theme)) }}>
                   <Stack direction="row" justifyContent="space-between"><Typography variant="subtitle2">{item.title}</Typography><StatusPill value={item.severity} /></Stack>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.8 }}>{item.content}</Typography>
                 </Stack>
@@ -123,7 +130,7 @@ function DashboardPage() {
           <GlassPanel title={user.role === "USER" ? "My next work" : "Execution lane"} subtitle="The items most likely to shape your next move">
             <Stack spacing={1.2}>
               {executionItems.length ? executionItems.map((item) => (
-                <Stack key={item.id || item.title} sx={{ p: 1.5, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+                <Stack key={item.id || item.title} sx={{ p: 1.5, borderRadius: 2.5, bgcolor: (theme) => surfaceSubtle(theme) }}>
                   <Typography variant="subtitle2">{item.title}</Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.7 }}>{item.subtitle || item.status || "Work item"}</Typography>
                 </Stack>
@@ -135,7 +142,18 @@ function DashboardPage() {
           <GlassPanel title={user.role === "USER" ? "Personal context" : "Team and risk watch"} subtitle={user.role === "USER" ? "Notes, meetings, and recommended next steps" : "Likely misses, onboarding drift, and operational pressure"}>
             <Stack spacing={1.2}>
               {contextItems.length ? contextItems.map((item) => (
-                <Stack key={item.id || item.task_id} sx={{ p: 1.5, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+                <Stack
+                  key={item.id || item.task_id}
+                  onClick={item._kind === "meeting" && item.id != null ? () => navigate(`/meetings/${item.id}`) : undefined}
+                  role={item._kind === "meeting" && item.id != null ? "button" : undefined}
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2.5,
+                    bgcolor: (theme) => surfaceSubtle(theme),
+                    cursor: item._kind === "meeting" && item.id != null ? "pointer" : "default",
+                    "&:focus-visible": item._kind === "meeting" ? { outline: "2px solid", outlineOffset: 2, outlineColor: "primary.main" } : undefined,
+                  }}
+                >
                   <Typography variant="subtitle2">{item.title}</Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.7 }}>{item.summary || item.content || item.reasons?.join(" - ")}</Typography>
                 </Stack>

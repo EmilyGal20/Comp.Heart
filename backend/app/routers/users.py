@@ -8,7 +8,15 @@ from app.models.knowledge import KnowledgeItem
 from app.models.notification import Notification
 from app.models.task import Task, TaskActivity, TaskWatcher
 from app.models.user import Team, User
-from app.schemas.user import UserCreate, UserDashboard, UserProfileResponse, UserRead, UserStatusUpdate, UserUpdate
+from app.schemas.user import (
+    AdminSetUserPasswordRequest,
+    UserCreate,
+    UserDashboard,
+    UserProfileResponse,
+    UserRead,
+    UserStatusUpdate,
+    UserUpdate,
+)
 from app.services.audit_service import log_audit_event
 from app.services.integration_service import selectable_recipients
 from app.services.profile_service import get_user_profile_payload
@@ -153,6 +161,34 @@ def update_user_status(
     db.refresh(target_user)
     publish_event("user_updated", {"id": target_user.id, "full_name": target_user.full_name, "is_active": target_user.is_active, "message": f"{target_user.full_name} was {'activated' if target_user.is_active else 'deactivated'}"}, organization_id=target_user.organization_id, user_id=target_user.id)
     return target_user
+
+
+@router.patch("/{user_id}/password")
+def admin_set_user_password(
+    user_id: int,
+    payload: AdminSetUserPasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_min_role(ROLE_ADMIN)),
+):
+    target = _get_user_or_404(db, user_id)
+    if current_user.role != ROLE_SUPER_ADMIN and target.role == ROLE_SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Only super admins can set passwords for super admin users")
+    if current_user.role != ROLE_SUPER_ADMIN and target.organization_id != current_user.organization_id:
+        raise HTTPException(status_code=403, detail="Cross-organization access denied")
+    _ensure_user_management_scope(current_user, target.organization_id, target.role)
+    target.password = hash_password(payload.new_password)
+    db.add(target)
+    log_audit_event(
+        db,
+        organization_id=target.organization_id,
+        user_id=current_user.id,
+        action="user_password_set_by_admin",
+        entity_type="User",
+        entity_id=target.id,
+        details=target.email,
+    )
+    db.commit()
+    return {"updated": True}
 
 
 @router.get("/me/dashboard", response_model=UserDashboard)

@@ -7,6 +7,7 @@ import GlassPanel from "../components/GlassPanel";
 import PageState from "../components/PageState";
 import PaginationControls from "../components/PaginationControls";
 import PageHeader from "../components/PageHeader";
+import { surfaceSubtle } from "../styles/muiSurfaces";
 
 function ContactsPage() {
   const navigate = useNavigate();
@@ -67,12 +68,12 @@ function ContactsPage() {
           <Grid container spacing={2.2}>
             {items.map((item) => (
               <Grid item xs={12} md={6} xl={4} key={item.id}>
-                <Box onClick={() => setSelected(item)} sx={{ p: 1.8, borderRadius: 3.5, cursor: "pointer", bgcolor: "rgba(255,255,255,0.03)" }}>
+                <Box onClick={() => setSelected(item)} sx={{ p: 1.8, borderRadius: 3.5, cursor: "pointer", bgcolor: (theme) => surfaceSubtle(theme) }}>
                   <Stack direction="row" spacing={1.4} alignItems="center">
                     <Avatar sx={{ bgcolor: "secondary.main" }}>{item.full_name.split(" ").map((part) => part[0]).join("").slice(0, 2)}</Avatar>
                     <Box>
                       <Typography variant="subtitle2">{item.full_name}</Typography>
-                      <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>{item.title}</Typography>
+                      <Typography variant="body2" color="text.secondary">{item.title}</Typography>
                     </Box>
                   </Stack>
                 </Box>
@@ -82,9 +83,9 @@ function ContactsPage() {
         ) : (
           <Stack spacing={1.2}>
             {items.map((item) => (
-              <Box key={item.id} onClick={() => setSelected(item)} sx={{ p: 1.6, borderRadius: 3.5, cursor: "pointer", bgcolor: "rgba(255,255,255,0.03)" }}>
+              <Box key={item.id} onClick={() => setSelected(item)} sx={{ p: 1.6, borderRadius: 3.5, cursor: "pointer", bgcolor: (theme) => surfaceSubtle(theme) }}>
                 <Typography variant="subtitle2">{item.full_name}</Typography>
-                <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>{item.email} - {item.team?.name || "No team"}</Typography>
+                <Typography variant="body2" color="text.secondary">{item.email} - {item.team?.name || "No team"}</Typography>
               </Box>
             ))}
           </Stack>

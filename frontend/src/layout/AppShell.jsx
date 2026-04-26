@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Apartment,
+  Archive,
   AutoAwesome,
   Campaign,
   FactCheck,
@@ -75,6 +76,7 @@ const navItems = [
   { label: "Chat", path: "/chat", icon: <Forum />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Knowledge", path: "/knowledge", icon: <MenuBook />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Tasks", path: "/tasks", icon: <TaskAlt />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
+  { label: "Task archive", path: "/task-archive", icon: <Archive />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Automation", path: "/automation", icon: <Hub />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER"] },
   { label: "Meetings", path: "/meetings", icon: <RecordVoiceOver />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
   { label: "Announcements", path: "/announcements", icon: <Campaign />, roles: ["SUPER_ADMIN", "ADMIN", "MANAGER", "USER"] },
@@ -95,6 +97,8 @@ function AppShell({ children }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  // Closing the search dialog returns focus to the app bar field; MUI's focus restore would retrigger onFocus and reopen the palette.
+  const suppressAppBarSearchFocusOpen = useRef(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, organizations, activeOrganizationId, scopedOrganization, setScopedOrganizationId } = useAuth();
@@ -162,6 +166,20 @@ function AppShell({ children }) {
       ...(user.role === "SUPER_ADMIN" ? [{ type: "command", title: "Open organizations", path: "/organizations", id: "orgs" }] : []),
     ];
   }, [allowedNavItems, user.role]);
+
+  const handleAppBarSearchFocus = () => {
+    if (suppressAppBarSearchFocusOpen.current) {
+      suppressAppBarSearchFocusOpen.current = false;
+      return;
+    }
+    setPaletteOpen(true);
+  };
+
+  const handleSearchDialogClose = () => {
+    suppressAppBarSearchFocusOpen.current = true;
+    setPaletteOpen(false);
+    setSearchQuery("");
+  };
 
   const drawerContent = (
     <Box
@@ -272,7 +290,8 @@ function AppShell({ children }) {
               size="small"
               placeholder="Search or jump..."
               value={searchQuery}
-              onFocus={() => setPaletteOpen(true)}
+              onClick={() => setPaletteOpen(true)}
+              onFocus={handleAppBarSearchFocus}
               onChange={(event) => setSearchQuery(event.target.value)}
               sx={{ minWidth: 230, display: { xs: "none", lg: "flex" } }}
               InputProps={{
@@ -368,7 +387,7 @@ function AppShell({ children }) {
           {children}
         </Box>
       </Box>
-      <Dialog open={paletteOpen} onClose={() => setPaletteOpen(false)} fullWidth maxWidth="sm">
+      <Dialog open={paletteOpen} onClose={handleSearchDialogClose} fullWidth maxWidth="sm">
         <DialogContent sx={{ p: 2.5 }}>
           <Stack spacing={1.5}>
             <TextField
@@ -384,6 +403,7 @@ function AppShell({ children }) {
                 <ListItemButton
                   key={`${item.type}-${item.id}`}
                   onClick={() => {
+                    suppressAppBarSearchFocusOpen.current = false;
                     setPaletteOpen(false);
                     if (item.path) navigate(item.path);
                     setSearchQuery("");

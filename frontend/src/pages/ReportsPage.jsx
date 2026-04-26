@@ -9,15 +9,16 @@ import PageState from "../components/PageState";
 import PaginationControls from "../components/PaginationControls";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
+import { progressTrackBg, surfaceSubtle } from "../styles/muiSurfaces";
 
 function BarRow({ label, value, max, accent = "linear-gradient(90deg, rgba(116,184,255,0.95), rgba(155,124,255,0.92))" }) {
   return (
     <Stack spacing={0.8}>
       <Stack direction="row" justifyContent="space-between">
         <Typography variant="body2">{label}</Typography>
-        <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>{value}</Typography>
+        <Typography variant="body2" color="text.secondary">{value}</Typography>
       </Stack>
-      <Box sx={{ height: 10, borderRadius: 999, bgcolor: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
+      <Box sx={{ height: 10, borderRadius: 999, bgcolor: (theme) => progressTrackBg(theme), overflow: "hidden" }}>
         <Box sx={{ width: `${max ? (value / max) * 100 : 0}%`, height: "100%", background: accent }} />
       </Box>
     </Stack>
@@ -121,7 +122,7 @@ function ReportsPage() {
           <GlassPanel title="Team risk overview" subtitle="Teams most likely to miss SLA or stall on delivery">
             <Stack spacing={1.35}>
               {teamRisk.map((team) => (
-                <Box key={team.team_name} sx={{ p: 1.5, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+                <Box key={team.team_name} sx={{ p: 1.5, borderRadius: 3.5, bgcolor: (theme) => surfaceSubtle(theme) }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Typography variant="subtitle2">{team.team_name}</Typography>
                     <Chip size="small" label={team.risk_level} color={team.risk_level === "high" || team.risk_level === "critical" ? "warning" : "default"} />
@@ -137,13 +138,13 @@ function ReportsPage() {
           <GlassPanel title="Top task risks" subtitle="Explainable flags using due dates, blockers, priority, and workload">
             <Stack spacing={1.2}>
               {slaRisk.slice(0, 6).map((entry) => (
-                <Box key={entry.task_id} sx={{ p: 1.5, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+                <Box key={entry.task_id} sx={{ p: 1.5, borderRadius: 3.5, bgcolor: (theme) => surfaceSubtle(theme) }}>
                   <Stack direction="row" justifyContent="space-between" spacing={1}>
                     <Typography variant="subtitle2">{entry.title}</Typography>
                     <Chip size="small" label={`${entry.risk_score} ${entry.risk_level}`} color={entry.risk_level === "critical" ? "error" : entry.risk_level === "high" ? "warning" : "default"} />
                   </Stack>
-                  <Typography variant="body2" sx={{ mt: 0.8, color: "rgba(226,232,240,0.62)" }}>{entry.assignee} · {entry.team}</Typography>
-                  <Typography variant="body2" sx={{ mt: 0.8, color: "rgba(226,232,240,0.74)" }}>{entry.reasons.join(" · ")}</Typography>
+                  <Typography variant="body2" sx={{ mt: 0.8, color: "text.secondary" }}>{entry.assignee} · {entry.team}</Typography>
+                  <Typography variant="body2" sx={{ mt: 0.8, color: "text.primary" }}>{entry.reasons.join(" · ")}</Typography>
                 </Box>
               ))}
             </Stack>
@@ -154,7 +155,7 @@ function ReportsPage() {
           <GlassPanel title="Sprint performance" subtitle="Completion signal across the visible sprint horizon">
             <Stack spacing={1.2}>
               {summary.sprint_performance.map((sprint) => (
-                <Box key={sprint.id} sx={{ p: 1.5, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+                <Box key={sprint.id} sx={{ p: 1.5, borderRadius: 3.5, bgcolor: (theme) => surfaceSubtle(theme) }}>
                   <Stack direction="row" justifyContent="space-between">
                     <Typography variant="subtitle2">{sprint.name}</Typography>
                     <Chip size="small" label={sprint.status} />
@@ -172,9 +173,9 @@ function ReportsPage() {
           <GlassPanel title="Audit log" subtitle="Governance trail for user, org, task, and approval changes">
             <Stack spacing={1.2}>
               {auditLogs.slice(0, 10).map((log) => (
-                <Box key={log.id} sx={{ p: 1.4, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+                <Box key={log.id} sx={{ p: 1.4, borderRadius: 3.5, bgcolor: (theme) => surfaceSubtle(theme) }}>
                   <Typography variant="subtitle2">{log.action}</Typography>
-                  <Typography variant="body2" sx={{ mt: 0.6, color: "rgba(226,232,240,0.64)" }}>
+                  <Typography variant="body2" sx={{ mt: 0.6, color: "text.secondary" }}>
                     {log.entity_type} #{log.entity_id || "-"} · {log.details || "No details"}
                   </Typography>
                 </Box>

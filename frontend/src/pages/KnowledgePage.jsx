@@ -8,6 +8,7 @@ import PageState from "../components/PageState";
 import PaginationControls from "../components/PaginationControls";
 import PageHeader from "../components/PageHeader";
 import { useAuth } from "../store/AuthContext";
+import { borderSubtle, surfaceSubtle, surfaceSubtleWeaker } from "../styles/muiSurfaces";
 
 function KnowledgePage() {
   const { activeOrganizationId, user } = useAuth();
@@ -71,8 +72,8 @@ function KnowledgePage() {
             />
             <List sx={{ p: 0 }}>
               {items.map((item) => (
-                <ListItemButton key={item.id} onClick={() => openItem(item)} sx={{ mb: 1, borderRadius: 3.5, alignItems: "flex-start", bgcolor: "rgba(255,255,255,0.025)" }}>
-                  <ListItemText primary={item.title} secondary={<Box sx={{ mt: 1 }}><Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)", mb: 1 }}>{item.summary}</Typography><Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap><Chip size="small" label={item.category} color="info" /><Chip size="small" label={`v${item.current_version || 1}`} /><Chip size="small" label={item.organization?.name || "Scoped"} variant="outlined" />{item.tags.map((tag) => <Chip key={tag.id} size="small" label={tag.name} variant="outlined" />)}</Stack></Box>} />
+                <ListItemButton key={item.id} onClick={() => openItem(item)} sx={{ mb: 1, borderRadius: 3.5, alignItems: "flex-start", border: (theme) => `1px solid ${borderSubtle(theme)}`, bgcolor: (theme) => surfaceSubtleWeaker(theme) }}>
+                  <ListItemText primary={item.title} secondary={<Box sx={{ mt: 1 }}><Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{item.summary}</Typography><Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap><Chip size="small" label={item.category} color="info" /><Chip size="small" label={`v${item.current_version || 1}`} /><Chip size="small" label={item.organization?.name || "Scoped"} variant="outlined" />{item.tags.map((tag) => <Chip key={tag.id} size="small" label={tag.name} variant="outlined" />)}</Stack></Box>} />
                 </ListItemButton>
               ))}
             </List>
@@ -82,7 +83,7 @@ function KnowledgePage() {
       </Grid>
       <Drawer anchor="right" open={Boolean(selected)} onClose={() => setSelected(null)}>
         <Box sx={{ width: { xs: 360, md: 620 }, p: 3 }}>
-          {selected ? <Stack spacing={2.2}><Typography variant="overline" color="primary.main">{selected.category}</Typography><Typography variant="h5">{selected.title}</Typography><Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap><Chip label={`Current v${selected.current_version || 1}`} color="secondary" />{selected.tags.map((tag) => <Chip key={tag.id} label={tag.name} variant="outlined" />)}</Stack><Typography variant="body1" sx={{ color: "rgba(226,232,240,0.76)", whiteSpace: "pre-wrap" }}>{selected.content}</Typography><GlassPanel title="Version history" subtitle="Restore previous revisions when needed"><Stack spacing={1.1}>{versions.map((version) => <Box key={version.id} sx={{ p: 1.3, borderRadius: 3, bgcolor: "rgba(255,255,255,0.03)" }}><Stack direction="row" justifyContent="space-between"><Typography variant="subtitle2">v{version.version_number}</Typography><Button size="small" onClick={() => knowledgeApi.restoreVersion(selected.id, version.id).then(() => openItem(selected))}>Restore</Button></Stack><Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>{version.editor?.full_name || "Unknown"} · {new Date(version.created_at).toLocaleString()}</Typography><Typography variant="body2" sx={{ mt: 0.8, color: "rgba(226,232,240,0.72)" }}>{version.summary_snapshot}</Typography></Box>)}</Stack></GlassPanel></Stack> : null}
+          {selected ? <Stack spacing={2.2}><Typography variant="overline" color="primary.main">{selected.category}</Typography><Typography variant="h5">{selected.title}</Typography><Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap><Chip label={`Current v${selected.current_version || 1}`} color="secondary" />{selected.tags.map((tag) => <Chip key={tag.id} label={tag.name} variant="outlined" />)}</Stack><Typography variant="body1" color="text.primary" sx={{ whiteSpace: "pre-wrap" }}>{selected.content}</Typography><GlassPanel title="Version history" subtitle="Restore previous revisions when needed"><Stack spacing={1.1}>{versions.map((version) => <Box key={version.id} sx={{ p: 1.3, borderRadius: 3, bgcolor: (theme) => surfaceSubtle(theme) }}><Stack direction="row" justifyContent="space-between"><Typography variant="subtitle2">v{version.version_number}</Typography><Button size="small" onClick={() => knowledgeApi.restoreVersion(selected.id, version.id).then(() => openItem(selected))}>Restore</Button></Stack><Typography variant="body2" color="text.secondary">{version.editor?.full_name || "Unknown"} · {new Date(version.created_at).toLocaleString()}</Typography><Typography variant="body2" color="text.secondary" sx={{ mt: 0.8 }}>{version.summary_snapshot}</Typography></Box>)}</Stack></GlassPanel></Stack> : null}
         </Box>
       </Drawer>
     </>

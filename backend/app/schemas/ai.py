@@ -7,6 +7,10 @@ from pydantic import BaseModel, Field, field_validator
 class AIChatRequest(BaseModel):
     message: str = Field(min_length=3, max_length=4000)
     conversation_id: Optional[int] = None
+    organization_id: Optional[int] = Field(
+        default=None,
+        description="SUPER_ADMIN: scope new messages to this org's knowledge. Ignored for other roles.",
+    )
 
 
 class AIReference(BaseModel):

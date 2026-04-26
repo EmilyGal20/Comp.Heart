@@ -5,35 +5,57 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import get_settings
+from app.core.permissions import ROLE_SUPER_ADMIN
 from app.models.ai import AIConversation, AIMessage
 from app.models.knowledge import KnowledgeItem
+from app.models.organization import Organization
 from app.models.task import Task
 from app.models.user import User
 from app.services.knowledge_service import search_knowledge
 
 
-def _create_or_get_conversation(db: Session, conversation_id: int | None, user: User, first_message: str) -> AIConversation:
+def _organization_name(db: Session, user: User, organization_id: int) -> str:
+    if user.organization and user.organization_id == organization_id and user.organization.name:
+        return user.organization.name
+    org = db.query(Organization).filter(Organization.id == organization_id).first()
+    return org.name if org and org.name else "your organization"
+
+
+def _create_or_get_conversation(
+    db: Session,
+    conversation_id: int | None,
+    user: User,
+    first_message: str,
+    new_conversation_org_id: int,
+) -> AIConversation:
     if conversation_id:
-        conversation = (
+        q = (
             db.query(AIConversation)
             .options(joinedload(AIConversation.messages))
-            .filter(AIConversation.id == conversation_id, AIConversation.organization_id == user.organization_id)
-            .first()
+            .filter(AIConversation.id == conversation_id)
         )
-        if conversation:
-            return conversation
+        if user.role != ROLE_SUPER_ADMIN:
+            q = q.filter(AIConversation.organization_id == user.organization_id)
+        found = q.first()
+        if found:
+            return found
 
-    conversation = AIConversation(title=first_message[:60], user_id=user.id, organization_id=user.organization_id)
+    conversation = AIConversation(title=first_message[:60], user_id=user.id, organization_id=new_conversation_org_id)
     db.add(conversation)
     db.commit()
     db.refresh(conversation)
     return conversation
 
 
-def _compose_mock_answer(question: str, references: list[KnowledgeItem], user: User) -> str:
+def _compose_mock_answer(
+    question: str,
+    references: list[KnowledgeItem],
+    user: User,
+    organization_name: str,
+) -> str:
     if not references:
         return (
-            f"I could not find a direct {user.organization.name} document for that question yet. "
+            f"I could not find a direct {organization_name} document for that question yet. "
             "Try asking about onboarding, incident response, release operations, SLA workflows, or team operating processes."
         )
 
@@ -52,13 +74,18 @@ def _compose_mock_answer(question: str, references: list[KnowledgeItem], user: U
         "SUPER_ADMIN": " Suggested system move: compare organization readiness and standardize the strongest process pattern.",
     }.get(user.role, "")
 
-    return f"Within {user.organization.name}, here is the best answer to '{question}': " + " ".join(bullets) + process_hint + role_hint
+    return f"Within {organization_name}, here is the best answer to '{question}': " + " ".join(bullets) + process_hint + role_hint
 
 
-def _maybe_openai_answer(question: str, references: list[KnowledgeItem], user: User) -> tuple[str, bool]:
+def _maybe_openai_answer(
+    question: str,
+    references: list[KnowledgeItem],
+    user: User,
+    organization_name: str,
+) -> tuple[str, bool]:
     settings = get_settings()
     if not settings.openai_api_key:
-        return _compose_mock_answer(question, references, user), False
+        return _compose_mock_answer(question, references, user, organization_name), False
 
     try:
         from openai import OpenAI
@@ -72,7 +99,7 @@ def _maybe_openai_answer(question: str, references: list[KnowledgeItem], user: U
             input=[
                 {
                     "role": "system",
-                    "content": f"You are CompHeart AI for {user.organization.name}. Tailor the answer to the user's role {user.role}. Answer only from provided company context and say when context is missing.",
+                    "content": f"You are CompHeart AI for {organization_name}. Tailor the answer to the user's role {user.role}. Answer only from provided company context and say when context is missing.",
                 },
                 {
                     "role": "user",
@@ -82,15 +109,46 @@ def _maybe_openai_answer(question: str, references: list[KnowledgeItem], user: U
         )
         return response.output_text, True
     except Exception:
-        return _compose_mock_answer(question, references, user), False
+        return _compose_mock_answer(question, references, user, organization_name), False
 
 
-def chat(db: Session, *, message: str, conversation_id: int | None, user: User):
-    conversation = _create_or_get_conversation(db, conversation_id, user, message)
+def chat(
+    db: Session,
+    *,
+    message: str,
+    conversation_id: int | None,
+    user: User,
+    organization_id: int | None = None,
+):
+    """For SUPER_ADMIN, optional organization_id scopes a new thread to that org's knowledge. Continuing a thread always uses the conversation's org."""
+    if conversation_id:
+        q = (
+            db.query(AIConversation)
+            .options(joinedload(AIConversation.messages))
+            .filter(AIConversation.id == conversation_id)
+        )
+        if user.role != ROLE_SUPER_ADMIN:
+            q = q.filter(AIConversation.organization_id == user.organization_id)
+        existing = q.first()
+        if existing:
+            knowledge_org = existing.organization_id
+            org_name = _organization_name(db, user, knowledge_org)
+            conversation = existing
+        else:
+            new_org = organization_id if (user.role == ROLE_SUPER_ADMIN and organization_id is not None) else user.organization_id
+            org_name = _organization_name(db, user, new_org)
+            conversation = _create_or_get_conversation(db, None, user, message, new_org)
+            knowledge_org = new_org
+    else:
+        new_org = organization_id if (user.role == ROLE_SUPER_ADMIN and organization_id is not None) else user.organization_id
+        org_name = _organization_name(db, user, new_org)
+        conversation = _create_or_get_conversation(db, None, user, message, new_org)
+        knowledge_org = new_org
+
     db.add(AIMessage(conversation_id=conversation.id, role="user", content=message))
-
-    references = search_knowledge(db, organization_id=user.organization_id, query=message)[:4]
-    answer, used_openai = _maybe_openai_answer(message, references, user)
+    db.flush()
+    references = search_knowledge(db, organization_id=knowledge_org, query=message)[:4]
+    answer, used_openai = _maybe_openai_answer(message, references, user, org_name)
     db.add(AIMessage(conversation_id=conversation.id, role="assistant", content=answer))
     db.commit()
     db.refresh(conversation)

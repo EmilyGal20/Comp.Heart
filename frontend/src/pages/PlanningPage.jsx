@@ -24,6 +24,7 @@ import PageState from "../components/PageState";
 import StatusPill from "../components/StatusPill";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
+import { borderSubtle, surfaceSubtle, surfaceSubtleWeaker, surfaceSubtleRow } from "../styles/muiSurfaces";
 
 const sprintFormDefault = { name: "", goal: "", start_date: "", end_date: "" };
 const templateFormDefault = {
@@ -188,8 +189,8 @@ function PlanningPage() {
       sx={{
         p: 1.7,
         borderRadius: 2.5,
-        bgcolor: "rgba(255,255,255,0.035)",
-        border: "1px solid rgba(148,163,184,0.08)",
+        bgcolor: (theme) => surfaceSubtleRow(theme),
+        border: (theme) => `1px solid ${borderSubtle(theme)}`,
         cursor: "grab",
       }}
     >
@@ -247,7 +248,7 @@ function PlanningPage() {
             <GlassPanel title="Sprint lanes" subtitle="Active and upcoming cycles with progress at a glance">
               <Stack spacing={1.4}>
                 {sprints.map((sprint) => (
-                  <Box key={sprint.id} sx={{ p: 1.75, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+                  <Box key={sprint.id} sx={{ p: 1.75, borderRadius: 2.5, bgcolor: (theme) => surfaceSubtle(theme) }}>
                     <Stack direction="row" justifyContent="space-between" spacing={1}>
                       <Typography variant="subtitle2">{sprint.name}</Typography>
                       <StatusPill value={sprint.status} />
@@ -300,7 +301,7 @@ function PlanningPage() {
                     <Stack spacing={1.25}>
                       {backlog.map((task) => taskCard(task, null))}
                       {!backlog.length ? (
-                        <Box sx={{ p: 3, borderRadius: 3, bgcolor: "rgba(255,255,255,0.025)" }}>
+                        <Box sx={{ p: 3, borderRadius: 3, bgcolor: (theme) => surfaceSubtleWeaker(theme) }}>
                           <Typography variant="body2">Backlog is clear right now.</Typography>
                         </Box>
                       ) : null}
@@ -340,7 +341,7 @@ function PlanningPage() {
                     direction="row"
                     justifyContent="space-between"
                     alignItems="center"
-                    sx={{ p: 1.5, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.03)" }}
+                    sx={{ p: 1.5, borderRadius: 2.5, bgcolor: (theme) => surfaceSubtle(theme) }}
                   >
                     <Box>
                       <Typography variant="subtitle2">{template.name}</Typography>
@@ -360,14 +361,14 @@ function PlanningPage() {
             <GlassPanel title="Recurring tasks" subtitle="Scheduled generation with safe manual trigger visibility">
               <Stack spacing={1.2}>
                 {recurring.map((item) => (
-                  <Box key={item.id} sx={{ p: 1.5, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+                  <Box key={item.id} sx={{ p: 1.5, borderRadius: 2.5, bgcolor: (theme) => surfaceSubtle(theme) }}>
                     <Typography variant="subtitle2">{item.template?.name || "Recurring task"}</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.6 }}>
                       {item.frequency} · next {new Date(item.next_run_at).toLocaleString()}
                     </Typography>
                   </Box>
                 ))}
-                <Divider sx={{ borderColor: "rgba(148,163,184,0.08)" }} />
+                <Divider sx={{ borderColor: (theme) => borderSubtle(theme) }} />
                 <Button startIcon={<PlayArrow />} variant="outlined" onClick={() => workApi.runRecurring().then(load)}>
                   Run due recurring tasks now
                 </Button>
@@ -493,7 +494,7 @@ function PlanningPage() {
                   direction="row"
                   spacing={1.5}
                   alignItems="flex-start"
-                  sx={{ p: 1.5, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.03)" }}
+                  sx={{ p: 1.5, borderRadius: 2.5, bgcolor: (theme) => surfaceSubtle(theme) }}
                 >
                   <Checkbox
                     checked={selectedSuggestions.includes(index)}

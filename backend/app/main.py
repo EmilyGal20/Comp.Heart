@@ -51,6 +51,10 @@ allowed_origins = [
 if settings.allowed_origin and settings.allowed_origin not in allowed_origins:
     allowed_origins.append(settings.allowed_origin)
 
+for extra in (part.strip() for part in (settings.cors_extra_origins or "").split(",") if part.strip()):
+    if extra not in allowed_origins:
+        allowed_origins.append(extra)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db.session import get_db
 from app.models.productivity import MeetingSummary
@@ -20,8 +20,15 @@ def get_meetings(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    items = list_meetings(db, current_user=current_user)
-    return paginate_list(items, page=page, page_size=page_size) if paginated else items
+    """List meetings; when paginated=true returns {items, meta} with Pydantic-encoded rows so the client always gets a stable shape."""
+    rows = list_meetings(db, current_user=current_user)
+    if paginated:
+        page_data = paginate_list(rows, page=page, page_size=page_size)
+        return {
+            "items": [MeetingSummaryRead.model_validate(m) for m in page_data["items"]],
+            "meta": page_data["meta"],
+        }
+    return [MeetingSummaryRead.model_validate(m) for m in rows]
 
 
 @router.post("/summarize", response_model=MeetingSummaryRead)
@@ -36,7 +43,12 @@ def summarize_meeting(
 
 @router.get("/{meeting_id}", response_model=MeetingSummaryRead)
 def get_meeting(meeting_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    meeting = db.query(MeetingSummary).filter(MeetingSummary.id == meeting_id).first()
+    meeting = (
+        db.query(MeetingSummary)
+        .options(joinedload(MeetingSummary.creator), joinedload(MeetingSummary.team), joinedload(MeetingSummary.organization))
+        .filter(MeetingSummary.id == meeting_id)
+        .first()
+    )
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting summary not found")
     if current_user.role != "SUPER_ADMIN" and meeting.organization_id != current_user.organization_id:

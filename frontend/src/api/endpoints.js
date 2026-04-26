@@ -14,6 +14,7 @@ export const usersApi = {
   list: (params) => api.get("/users", { params }),
   create: (payload) => api.post("/users", payload),
   update: (id, payload) => api.put(`/users/${id}`, payload),
+  setUserPassword: (id, payload) => api.patch(`/users/${id}/password`, payload),
   updateStatus: (id, payload) => api.patch(`/users/${id}/status`, payload),
   detail: (id) => api.get(`/users/${id}`),
   myDashboard: () => api.get("/users/me/dashboard"),
@@ -158,10 +159,11 @@ export const analyticsApi = {
 export const settingsApi = {
   profile: () => api.get("/settings/profile"),
   updateProfile: (payload) => api.put("/settings/profile", payload),
+  changePassword: (payload) => api.put("/settings/password", payload),
   workspace: () => api.get("/settings/workspace"),
   updateWorkspace: (payload) => api.put("/settings/workspace", payload),
-  organization: () => api.get("/settings/organization"),
-  updateOrganization: (payload) => api.put("/settings/organization", payload),
+  organization: (params) => api.get("/settings/organization", { params }),
+  updateOrganization: (payload, params) => api.put("/settings/organization", payload, { params }),
 };
 
 export const approvalsApi = {

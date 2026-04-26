@@ -51,6 +51,7 @@ function EmployeesPage() {
   const [editingUser, setEditingUser] = useState(null);
   const [filters, setFilters] = useState({ role: "", search: "", team_id: "" });
   const [error, setError] = useState("");
+  const [okMessage, setOkMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState(null);
@@ -68,6 +69,7 @@ function EmployeesPage() {
       setUsers([]);
       setTeams([]);
       setMeta(null);
+      setOkMessage("");
       setLoading(false);
       return;
     }
@@ -89,6 +91,7 @@ function EmployeesPage() {
       setMeta(usersResponse.data.meta || null);
       setTeams(teamsResponse.data || []);
       setError("");
+      setOkMessage("");
     } catch (requestError) {
       setError(requestError.response?.data?.detail || "Unable to load users");
     } finally {
@@ -124,6 +127,35 @@ function EmployeesPage() {
     setDialogOpen(true);
   };
 
+  const openPassword = (entry, event) => {
+    if (event) event.stopPropagation();
+    clearNotices();
+    setPasswordTarget(entry);
+    setPasswordForm({ newPassword: "", confirm: "" });
+  };
+
+  const submitPassword = async () => {
+    if (!passwordTarget) return;
+    if (passwordForm.newPassword.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirm) {
+      setError("Passwords do not match");
+      return;
+    }
+    try {
+      setError("");
+      const who = passwordTarget.full_name;
+      const id = passwordTarget.id;
+      await usersApi.setUserPassword(id, { new_password: passwordForm.newPassword });
+      setPasswordTarget(null);
+      setOkMessage(`Password updated for ${who}`);
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "Unable to set password");
+    }
+  };
+
   const submit = async () => {
     try {
       setError("");
@@ -150,9 +182,18 @@ function EmployeesPage() {
   };
 
   const canManage = ["SUPER_ADMIN", "ADMIN", "MANAGER"].includes(user.role);
+  const canSetUserPasswords = user.role === "SUPER_ADMIN" || user.role === "ADMIN";
+  const [passwordForm, setPasswordForm] = useState({ newPassword: "", confirm: "" });
+  const [passwordTarget, setPasswordTarget] = useState(null);
+
+  const clearNotices = () => {
+    setError("");
+    setOkMessage("");
+  };
 
   return (
     <>
+      {okMessage ? <Alert severity="success" sx={{ mb: 2 }} onClose={() => setOkMessage("")}>{okMessage}</Alert> : null}
       <PageHeader
         eyebrow={user.role === "SUPER_ADMIN" ? "Global People Directory" : "Organization People"}
         title={user.role === "USER" ? "Profile directory" : "People, roles, and organization ownership"}
@@ -164,7 +205,7 @@ function EmployeesPage() {
         {user.role === "SUPER_ADMIN" && !activeOrganizationId ? (
           <Grid item xs={12}>
             <GlassPanel title="Choose an organization" subtitle="User management remains organization-scoped even for super admins">
-              <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.68)" }}>
+              <Typography variant="body2" color="text.secondary">
                 Select an organization from the header switcher to create users, adjust roles, and manage team placement.
               </Typography>
             </GlassPanel>
@@ -220,7 +261,7 @@ function EmployeesPage() {
                                 </Avatar>
                                 <div>
                                   <Typography variant="subtitle2">{entry.full_name}</Typography>
-                                  <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.62)" }}>{entry.email}</Typography>
+                                  <Typography variant="body2" color="text.secondary">{entry.email}</Typography>
                                 </div>
                               </Stack>
                             </TableCell>
@@ -228,9 +269,12 @@ function EmployeesPage() {
                             <TableCell>{entry.team?.name || "Unassigned"}</TableCell>
                             <TableCell><Chip size="small" label={entry.is_active ? "Active" : "Inactive"} color={entry.is_active ? "success" : "default"} /></TableCell>
                             <TableCell>{entry.organization?.name}</TableCell>
-                            <TableCell align="right">
+                            <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                               <Button size="small" onClick={(event) => { event.stopPropagation(); navigate(`/people/${entry.id}`); }}>Profile</Button>
                               {canManage ? <Button size="small" onClick={(event) => { event.stopPropagation(); openEdit(entry); }}>Edit</Button> : null}
+                              {canSetUserPasswords ? (
+                                <Button size="small" onClick={(e) => openPassword(entry, e)}>Set password</Button>
+                              ) : null}
                               {canManage ? <Button size="small" color={entry.is_active ? "warning" : "success"} onClick={(event) => { event.stopPropagation(); toggleStatus(entry); }}>{entry.is_active ? "Deactivate" : "Activate"}</Button> : null}
                             </TableCell>
                           </TableRow>
@@ -258,7 +302,8 @@ function EmployeesPage() {
               <Typography variant="body2">Email: {selected.email}</Typography>
               <Typography variant="body2">Team: {selected.team?.name || "No team assigned"}</Typography>
               <Typography variant="body2">Organization: {selected.organization?.name}</Typography>
-              <Typography variant="body1" sx={{ color: "rgba(226, 232, 240, 0.7)" }}>{selected.responsibilities}</Typography>
+              {canSetUserPasswords ? <Button size="small" variant="outlined" onClick={() => { openPassword(selected); }}>Set password</Button> : null}
+              <Typography variant="body1" color="text.secondary" sx={{ mt: 0.5 }}>{selected.responsibilities}</Typography>
             </>
           ) : null}
         </Stack>
@@ -287,6 +332,34 @@ function EmployeesPage() {
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
           <Button onClick={submit} variant="contained">Save</Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={Boolean(passwordTarget)} onClose={() => setPasswordTarget(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Set password for {passwordTarget?.full_name || ""}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 0.5 }}>
+            <TextField
+              type="password"
+              autoComplete="new-password"
+              fullWidth
+              label="New password"
+              value={passwordForm.newPassword}
+              onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
+            />
+            <TextField
+              type="password"
+              autoComplete="new-password"
+              fullWidth
+              label="Confirm password"
+              value={passwordForm.confirm}
+              onChange={(e) => setPasswordForm((p) => ({ ...p, confirm: e.target.value }))}
+            />
+            <Typography variant="caption" color="text.secondary">Minimum 6 characters. The user will use this to sign in.</Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPasswordTarget(null)}>Cancel</Button>
+          <Button onClick={submitPassword} variant="contained" disabled={!passwordForm.newPassword || !passwordForm.confirm}>Update</Button>
         </DialogActions>
       </Dialog>
     </>

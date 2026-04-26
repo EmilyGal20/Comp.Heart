@@ -177,11 +177,22 @@ function SearchPage() {
                         {items.map((item) => (
                           <Stack
                             key={`${group.type}-${item.id}`}
+                            component={item.path ? "button" : "div"}
+                            type={item.path ? "button" : undefined}
                             spacing={0.8}
+                            onClick={() => {
+                              if (item.path) navigate(item.path);
+                            }}
                             sx={{
                               p: 1.6,
                               borderRadius: 2.5,
                               bgcolor: "action.hover",
+                              border: "none",
+                              textAlign: "left",
+                              width: "100%",
+                              cursor: item.path ? "pointer" : "default",
+                              font: "inherit",
+                              color: "inherit",
                             }}
                           >
                             <Stack direction="row" justifyContent="space-between" spacing={1}>

@@ -6,6 +6,7 @@ import GlassPanel from "../components/GlassPanel";
 import PageState from "../components/PageState";
 import PaginationControls from "../components/PaginationControls";
 import PageHeader from "../components/PageHeader";
+import { borderSubtle, surfaceSubtle } from "../styles/muiSurfaces";
 import StatusPill from "../components/StatusPill";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
@@ -119,11 +120,11 @@ function ApprovalsPage() {
                   minHeight={160}
                 />
                 {approvals.map((approval) => (
-                  <Box key={approval.id} onClick={() => setSelected(approval)} sx={{ p: 1.7, borderRadius: 3.5, cursor: "pointer", bgcolor: "rgba(255,255,255,0.03)", border: "1px solid rgba(148,163,184,0.08)" }}>
+                  <Box key={approval.id} onClick={() => setSelected(approval)} sx={{ p: 1.7, borderRadius: 3.5, cursor: "pointer", bgcolor: (theme) => surfaceSubtle(theme), border: (theme) => `1px solid ${borderSubtle(theme)}` }}>
                     <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" spacing={1.5}>
                       <Box>
                         <Typography variant="subtitle2">{approval.task?.title || `Task #${approval.task_id}`}</Typography>
-                        <Typography variant="body2" sx={{ mt: 0.7, color: "rgba(226,232,240,0.62)" }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.7 }}>
                           {(approval.requester?.full_name || "Unknown requester")} - {approval.reason || "No explicit reason provided"}
                         </Typography>
                       </Box>

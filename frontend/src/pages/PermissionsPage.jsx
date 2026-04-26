@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
+import { Alert, Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
 import { workApi } from "../api/endpoints";
 import GlassPanel from "../components/GlassPanel";
 import PageHeader from "../components/PageHeader";
@@ -10,9 +10,16 @@ function renderCheck(value) {
 
 function PermissionsPage() {
   const [matrix, setMatrix] = useState([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    workApi.permissionMatrix().then((response) => setMatrix(response.data));
+    workApi
+      .permissionMatrix()
+      .then((response) => {
+        setMatrix(Array.isArray(response.data) ? response.data : []);
+        setError("");
+      })
+      .catch((e) => setError(e?.response?.data?.detail || "Unable to load the permissions matrix."));
   }, []);
 
   return (
@@ -23,6 +30,7 @@ function PermissionsPage() {
         description="A clean view of who can do what across organizations, people management, tasks, planning, approvals, and audit visibility."
       />
       <GlassPanel title="Capability grid" subtitle="Server-side permissions remain the source of truth">
+        {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         <Table>
           <TableHead>
             <TableRow>

@@ -6,6 +6,7 @@ import Grid from "../components/AppGrid";
 import GlassPanel from "../components/GlassPanel";
 import MetricCard from "../components/MetricCard";
 import PageHeader from "../components/PageHeader";
+import { surfaceSubtle } from "../styles/muiSurfaces";
 
 function EmployeeProfilePage() {
   const { userId } = useParams();
@@ -47,14 +48,14 @@ function EmployeeProfilePage() {
                     </Avatar>
                     <Stack>
                       <Typography variant="h6">{data.user.full_name}</Typography>
-                      <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.66)" }}>{data.user.title}</Typography>
+                      <Typography variant="body2" color="text.secondary">{data.user.title}</Typography>
                     </Stack>
                   </Stack>
                   <Typography variant="body2">Email: {data.user.email}</Typography>
                   <Typography variant="body2">Team: {data.user.team?.name || "No team assigned"}</Typography>
                   <Typography variant="body2">Organization: {data.user.organization?.name}</Typography>
                   <Typography variant="body2">Joined: {new Date(data.user.created_at).toLocaleDateString()}</Typography>
-                  <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.68)" }}>{data.user.responsibilities}</Typography>
+                  <Typography variant="body2" color="text.primary">{data.user.responsibilities}</Typography>
                 </Stack>
               </GlassPanel>
               <Grid container spacing={2}>
@@ -69,9 +70,9 @@ function EmployeeProfilePage() {
               <GlassPanel title="Assigned work" subtitle="Current execution responsibilities">
                 <Stack spacing={1.2}>
                   {data.assigned_tasks.map((item) => (
-                    <Stack key={item.id} sx={{ p: 1.5, borderRadius: 3.5, bgcolor: "rgba(255,255,255,0.03)" }}>
+                    <Stack key={item.id} sx={{ p: 1.5, borderRadius: 3.5, bgcolor: (theme) => surfaceSubtle(theme) }}>
                       <Typography variant="subtitle2">{item.title}</Typography>
-                      <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.66)" }}>{item.status} - {item.priority}</Typography>
+                      <Typography variant="body2" color="text.secondary">{item.status} - {item.priority}</Typography>
                     </Stack>
                   ))}
                 </Stack>

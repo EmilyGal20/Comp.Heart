@@ -26,6 +26,7 @@ const ReportsPage = lazy(() => import("./pages/ReportsPage"));
 const SearchPage = lazy(() => import("./pages/SearchPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const TasksPage = lazy(() => import("./pages/TasksPage"));
+const TaskArchivePage = lazy(() => import("./pages/TaskArchivePage"));
 const MeetingsPage = lazy(() => import("./pages/MeetingsPage"));
 const EmployeeProfilePage = lazy(() => import("./pages/EmployeeProfilePage"));
 
@@ -56,7 +57,9 @@ function App() {
                   <Route path="/chat" element={<ChatPage />} />
                   <Route path="/knowledge" element={<KnowledgePage />} />
                   <Route path="/tasks" element={<TasksPage />} />
+                  <Route path="/task-archive" element={<TaskArchivePage />} />
                   <Route path="/automation" element={<ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "MANAGER"]}><AutomationPage /></ProtectedRoute>} />
+                  <Route path="/meetings/:meetingId" element={<MeetingsPage />} />
                   <Route path="/meetings" element={<MeetingsPage />} />
                   <Route path="/announcements" element={<AnnouncementsPage importantOnly={false} />} />
                   <Route path="/messages" element={<AnnouncementsPage importantOnly />} />

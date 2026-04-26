@@ -7,6 +7,7 @@ import PaginationControls from "../components/PaginationControls";
 import PageHeader from "../components/PageHeader";
 import { useAuth } from "../store/AuthContext";
 import { useRealtime } from "../store/RealtimeContext";
+import { borderSubtle, brandSurfaceSelected, surfaceSubtle, surfaceSubtleEmphasis2 } from "../styles/muiSurfaces";
 
 function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
@@ -140,7 +141,7 @@ function NotificationsPage() {
               {items.length ? items.map((notification) => {
                 const selected = selectedIds.includes(notification.id);
                 return (
-                  <Box key={notification.id} onClick={() => setSelectedIds((previous) => selected ? previous.filter((id) => id !== notification.id) : [...previous, notification.id])} sx={{ p: 1.8, borderRadius: 2.5, cursor: "pointer", bgcolor: selected ? "rgba(116,184,255,0.12)" : notification.is_read ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.06)", border: "1px solid rgba(148,163,184,0.08)" }}>
+                  <Box key={notification.id} onClick={() => setSelectedIds((previous) => selected ? previous.filter((id) => id !== notification.id) : [...previous, notification.id])} sx={{ p: 1.8, borderRadius: 2.5, cursor: "pointer", bgcolor: (theme) => (selected ? brandSurfaceSelected(theme) : notification.is_read ? surfaceSubtle(theme) : surfaceSubtleEmphasis2(theme)), border: (theme) => `1px solid ${borderSubtle(theme)}` }}>
                     <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.4}>
                       <Box>
                         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 0.8 }}>

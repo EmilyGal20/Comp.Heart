@@ -61,7 +61,7 @@ function ProfilePage() {
                 <Grid item xs={12} md={6} key={note.id}>
                   <Box sx={{ p: 1.8, borderRadius: 3.5, bgcolor: note.color === "amber" ? "rgba(245,165,36,0.12)" : note.color === "violet" ? "rgba(155,124,255,0.12)" : "rgba(61,200,255,0.12)" }}>
                     <Stack direction="row" justifyContent="space-between"><Typography variant="subtitle2">{note.title}</Typography>{note.is_pinned ? <PushPin fontSize="small" /> : null}</Stack>
-                    <Typography variant="body2" sx={{ mt: 0.8, color: "rgba(226,232,240,0.72)" }}>{note.content}</Typography>
+                    <Typography variant="body2" color="text.primary" sx={{ mt: 0.8 }}>{note.content}</Typography>
                     <Stack direction="row" spacing={1} sx={{ mt: 1.2 }}><Button size="small" onClick={() => openNote(note)}>Edit</Button><Button size="small" color="error" onClick={() => selfNotesApi.remove(note.id).then(load)}>Delete</Button></Stack>
                   </Box>
                 </Grid>
