@@ -27,9 +27,12 @@ backend/*_temp.db
 # Node / React / Vite
 # =========================
 node_modules/
+frontend/node_modules/
 dist/
+frontend/dist/
 build/
 .vite/
+frontend/node_modules/.vite/
 *.tsbuildinfo
 
 # =========================
