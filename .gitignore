@@ -58,3 +58,8 @@ Thumbs.db
 # =========================
 coverage/
 .cache/
+
+# =========================
+# Frontend
+# =========================
+frontend/compheart.db
