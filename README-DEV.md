@@ -252,9 +252,41 @@ gcc -shared -fPIC -o backend/app/native/librisk_score.dylib backend/app/native/r
 npm run install-all
 ```
 
-2. Optionally compile the native C helper.
+2. Run the frontend and backend separately:
 
-3. Optionally add a backend `.env` file for real OpenAI responses:
+   - Frontend (Vite):
+
+     ```bash
+     npm run frontend
+     ```
+
+     Opens the UI at `http://localhost:8069`.
+
+   - Backend (FastAPI):
+
+     ```bash
+     npm run backend
+     ```
+
+     Opens the API server at `http://localhost:7155`.
+
+   - If you are using the local Python virtual environment for the backend, activate it first:
+
+     ```bash
+     source .venv/bin/activate
+     npm run frontend
+     npm run backend
+     ```
+
+3. Run both together:
+
+```bash
+npm run dev
+```
+
+4. Optionally compile the native C helper.
+
+5. Optionally add a backend `.env` file for real OpenAI responses:
 
 ```env
 OPENAI_API_KEY=your_key_here
